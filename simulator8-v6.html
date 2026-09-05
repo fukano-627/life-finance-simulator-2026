@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>持ち家君 vs 賃貸君シミュレータ</title>
+<style>
+  :root {
+    --bg-grad-1: #e0eafc;
+    --bg-grad-2: #cfdef3;
+    --card-bg: rgba(255, 255, 255, 0.65);
+    --card-border: rgba(255, 255, 255, 0.4);
+    
+    --accent-buy: #3b82f6;
+    --accent-rent: #f97316;
+    --accent-invest: #10b981;
+    --accent-help: #8b5cf6;
+    
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --warn: #ef4444;
+    
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+    --radius: 24px;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    background: linear-gradient(135deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 100%);
+    background-attachment: fixed;
+    color: var(--text-main);
+    margin: 0;
+    padding: 18px 16px;
+    line-height: 1.6;
+  }
+  
+  .header { text-align: center; margin-bottom: 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 8px; font-weight: 800; color: #0f172a; letter-spacing: 0.05em; }
+  p.sub { color: var(--text-muted); font-size: 0.9rem; margin: 0; }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-width: 0;
+  }
+  @media(min-width: 800px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media(min-width: 1100px){ .grid { grid-template-columns: 1fr 1fr 1fr; } }
+  
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s ease;
+    min-width: 0;
+  }
+  .card:hover { transform: translateY(-2px); }
+  
+  .card h2 {
+    font-size: 1.1rem;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card h2::before {
+    content: "";
+    display: inline-block;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent-buy);
+  }
+  .card.rent h2::before { background: var(--accent-rent); }
+  .card.invest h2::before { background: var(--accent-invest); }
+  .card.help h2::before { background: var(--accent-help); }
+  
+  #modeCard, #budgetCard, #restartCard, #proCard, #chartCard, #detailCard, #compareCard, #helpCard { grid-column: 1 / -1; }
+
+  .modeSwitch { max-width: 620px; margin: 0 auto; }
+  .modeSwitch button { font-size: 0.95rem; padding: 13px 10px; }
+  .modeSwitch button.active { color: var(--accent-help); }
+  .modeDescription { text-align:center; margin:4px 0 0; }
+  .proOnly { display:none; }
+  body.pro-mode .proOnly { display:block; }
+
+  .proGrid { display:grid; grid-template-columns:1fr; gap:16px; }
+  @media(min-width:800px){ .proGrid { grid-template-columns:1fr 1fr; } }
+  .proPanel { background:rgba(255,255,255,0.58); border-radius:16px; padding:18px; }
+  .proPanel h3 { margin:0 0 6px; font-size:0.98rem; }
+  .proInputRow { display:grid; grid-template-columns:minmax(115px,1fr) 110px 42px; gap:10px; align-items:center; margin-top:12px; }
+  .proInputRow label { font-size:0.82rem; font-weight:700; color:#334155; }
+  .proInputRow input, .proSelect {
+    width:100%; padding:9px 10px; border:1px solid #cbd5e1; border-radius:9px;
+    background:rgba(255,255,255,0.9); color:var(--text-main); font-size:0.9rem;
+  }
+  .proInputRow span { font-size:0.78rem; color:var(--text-muted); }
+  .proOption { margin-top:14px; }
+  .proOption label { display:block; margin-bottom:6px; font-size:0.82rem; font-weight:700; }
+  .proRateFields.hidden { display:none; }
+
+  .detailTableWrap { overflow-x:auto; margin-top:12px; }
+  #detailTable { width:100%; border-collapse:collapse; font-size:0.8rem; }
+  #detailTable th { padding:9px 8px; text-align:right; border-bottom:2px solid #cbd5e1; white-space:nowrap; }
+  #detailTable th:first-child, #detailTable td:first-child { text-align:left; }
+  #detailTable td { padding:9px 8px; text-align:right; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  #detailTable tr:hover td { background:rgba(59,130,246,0.05); }
+  #detailTable tr.overBudget td { background:rgba(239,68,68,0.09); color:#b91c1c; font-weight:700; }
+  .detailSummary { display:grid; grid-template-columns:1fr; gap:12px; margin-top:16px; }
+  @media(min-width:800px){ .detailSummary { grid-template-columns:repeat(3,1fr); } }
+  .detailStat { background:rgba(255,255,255,0.7); border-radius:12px; padding:14px; }
+  .detailStat span { display:block; font-size:0.75rem; color:var(--text-muted); }
+  .detailStat b { display:block; margin-top:4px; font-size:1.05rem; color:var(--accent-buy); }
+  
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .row label { font-size: 0.85rem; font-weight: 600; color: #334155; flex: 1 1 50%; }
+  .row .val { 
+    font-size: 0.95rem; font-weight: 700; width: 100px; text-align: right; 
+    background: rgba(255,255,255,0.7); padding: 4px 10px; border-radius: 8px;
+  }
+  .card .val { color: var(--accent-buy); }
+  .card.rent .val { color: var(--accent-rent); }
+  .card.invest .val { color: var(--accent-invest); }
+  
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    margin: 5px 0 1px;
+    background: transparent;
+  }
+  input[type=range]:focus { outline: none; }
+  
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px;
+    background: rgba(0,0,0,0.08);
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px; width: 46px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 2px solid var(--accent-buy);
+    cursor: pointer;
+    margin-top: -6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    background-image: linear-gradient(90deg, transparent 40%, var(--accent-buy) 40%, var(--accent-buy) 60%, transparent 60%);
+    background-size: 6px 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  input[type=range]::-moz-range-track {
+    height: 6px;
+    background: rgba(0,0,0,0.08);
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  input[type=range]::-moz-range-thumb {
+    height: 16px; width: 46px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 2px solid var(--accent-buy);
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  .card.rent input[type=range]::-moz-range-thumb { border-color: var(--accent-rent); }
+  .card.invest input[type=range]::-moz-range-thumb { border-color: var(--accent-invest); }
+  .card.rent input[type=range]::-webkit-slider-thumb { border-color: var(--accent-rent); background-image: linear-gradient(90deg, transparent 40%, var(--accent-rent) 40%, var(--accent-rent) 60%, transparent 60%); }
+  .card.invest input[type=range]::-webkit-slider-thumb { border-color: var(--accent-invest); background-image: linear-gradient(90deg, transparent 40%, var(--accent-invest) 40%, var(--accent-invest) 60%, transparent 60%); }
+  
+  .toggle {
+    display: flex;
+    background: rgba(0,0,0,0.04);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 20px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+  }
+  .toggle button {
+    flex: 1;
+    padding: 10px 8px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .toggle button.active {
+    background: #ffffff;
+    color: var(--accent-buy);
+    box-shadow: var(--shadow-sm);
+  }
+  .toggle.type button.active { color: var(--text-main); }
+  
+  .phaseRow { display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 5px; gap: 5px 8px; padding: 7px 10px; background: rgba(255,255,255,0.4); border-radius: 10px; }
+  .phaseRow span.label { font-size: 0.85rem; font-weight: 600; flex: 1 1 120px; }
+  #budgetCard > .note { margin-bottom: 8px !important; }
+  
+  input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent-invest); vertical-align: middle; margin-right: 8px; cursor: pointer; }
+  
+  canvas { 
+    display: block; 
+    width: 100% !important;
+    height: 350px; 
+    margin-bottom: 20px; 
+  }
+  
+  .eqBox { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 20px; }
+  @media(min-width: 800px) { .eqBox { grid-template-columns: 1fr 1fr; } }
+  
+  .eq {
+    background: rgba(255,255,255,0.8);
+    border-radius: 16px;
+    padding: 20px;
+    font-size: 0.9rem;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+  }
+  .eq::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--accent-buy); }
+  .eq.rent::before { background: var(--accent-rent); }
+  
+  .eq b { font-size: 1.1rem; font-family: monospace; }
+  .eq .term { font-size: 1rem; font-weight: 800; display: block; margin-bottom: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; }
+  .eq .result-val { font-size: 1.4rem; font-weight: 900; display: block; margin-top: 12px; text-align: right; }
+  .eq.buy .result-val { color: var(--accent-buy); }
+  .eq.rent .result-val { color: var(--accent-rent); }
+  
+  .crossBox {
+    margin-top: 24px; text-align: center; font-size: 1rem; font-weight: 700;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    padding: 16px; border-radius: 16px; color: #166534;
+    border: 1px solid #bbf7d0; box-shadow: var(--shadow-sm);
+  }
+  .crossBox b { font-size: 1.4rem; margin-left: 12px; }
+  
+  .warn { color: var(--warn); font-size: 0.85rem; font-weight: bold; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .warn:empty { display: none; }
+  .note { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+
+  .ioRow { display:flex; gap:12px; margin-top:20px; flex-wrap: wrap; }
+  .ioBtn {
+    flex: 1 1 200px; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+    font-weight: 700; font-size: 0.9rem; text-align: center; transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+  }
+  #saveBtn { background: var(--accent-buy); color: #fff; }
+  #saveBtn:hover { filter: brightness(1.08); }
+  #shareBtn { background: var(--accent-invest); color: #fff; }
+  #shareBtn:hover { filter: brightness(1.08); }
+  .loadLabel { background: #e2e8f0; color: var(--text-main); }
+  .loadLabel:hover { background: #cbd5e1; }
+  #ioStatus { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; text-align: center; min-height: 1.2em; }
+
+  #addCompareBtn { background: var(--accent-buy); color:#fff; }
+  #exportCsvBtn { background: var(--accent-invest); color:#fff; }
+  #compareTable { width:100%; border-collapse:collapse; font-size:0.8rem; }
+  #compareTable th { padding:8px; text-align:left; border-bottom:2px solid #cbd5e1; white-space:nowrap; }
+  #compareTable td { padding:8px; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+  #compareTable tr:hover td { background: rgba(59,130,246,0.05); }
+  .delRowBtn { border:none; background:none; color:var(--warn); cursor:pointer; font-weight:700; }
+
+  .restartToggleRow { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .restartToggleRow label { font-weight:700; cursor:pointer; font-size:0.9rem; }
+  #restartFields { display:none; }
+  #restartSummary { font-weight:700; }
+
+  .helpToggle {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; padding: 14px 16px; border: none; border-radius: 12px;
+    background: rgba(139,92,246,0.08); cursor: pointer; font-weight: 700; font-size: 0.9rem;
+    color: var(--text-main); margin-bottom: 10px; text-align: left;
+  }
+  .helpToggle:hover { background: rgba(139,92,246,0.15); }
+  .helpToggle .chev { transition: transform 0.2s ease; color: var(--accent-help); }
+  .helpToggle.open .chev { transform: rotate(90deg); }
+  .helpBody { display: none; padding: 4px 8px 20px; }
+  .helpBody.open { display: block; }
+  .helpTable { width:100%; border-collapse:collapse; font-size:0.82rem; margin-top:8px; }
+  .helpTable th { text-align:left; padding:8px; border-bottom:2px solid #e2e8f0; }
+  .helpTable td { padding:8px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+  .helpTable a { color: var(--accent-help); font-weight:700; text-decoration:none; }
+  .helpTable a:hover { text-decoration:underline; }
+  .tipList { list-style:none; padding:0; margin:8px 0 0; }
+  .tipList li { padding:10px 12px; background:rgba(255,255,255,0.6); border-radius:10px; margin-bottom:8px; font-size:0.85rem; }
+  .tipList b { color: var(--accent-help); }
+
+@media (max-width: 900px) {
+  body { padding: 16px 14px; }
+  h1 { font-size: 1.3rem; letter-spacing: 0.03em; }
+  .card { padding: 18px; }
+  canvas { height: 300px; }
+  .proGrid { grid-template-columns:1fr; }
+  .detailTableWrap {
+    overflow-x:auto;
+    padding-bottom:8px;
+    -webkit-overflow-scrolling:touch;
+  }
+  #detailTable { min-width:1180px; }
+}
+
+@media (max-width: 600px) {
+  body { padding: 10px; }
+  h1 { font-size: 1.05rem; letter-spacing: 0; }
+  p.sub { font-size: 0.78rem; }
+
+  .grid { gap: 12px; }
+  .card { padding: 14px; border-radius: 16px; }
+  .card h2 { font-size: 0.95rem; margin-bottom: 11px; padding-bottom: 7px; }
+
+  .row, .phaseRow {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    gap: 3px 10px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .row label, .phaseRow span.label {
+    grid-column: 1 / 2;
+    grid-row: 1;
+    margin: 0;
+  }
+  .row .val, .phaseRow span.val {
+    grid-column: 2 / 3;
+    grid-row: 1;
+    font-size: 1rem;
+    width: auto;
+  }
+  .row input[type=range], .phaseRow input[type=range] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    width: 100%;
+    margin: 2px 0 0 0;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    height: 18px;
+    width: 48px;
+    margin-top: -7px;
+  }
+  input[type=range]::-moz-range-thumb { height:18px; width:48px; }
+
+  .modeSwitch { flex-direction:column; gap:4px; }
+  .modeSwitch button { width:100%; font-size:0.82rem; padding:11px 8px; }
+  .toggle button { font-size: 0.75rem; padding: 10px 4px; }
+  #proCard > .note { margin-bottom:14px; }
+  .proGrid { gap:12px; }
+  .proPanel { padding:14px; border-radius:12px; }
+  .proPanel h3 { font-size:0.92rem; }
+  .proPanel .note { font-size:0.7rem; }
+  .proInputRow {
+    grid-template-columns:1fr auto;
+    gap:6px 8px;
+    padding:10px 0;
+    margin-top:0;
+    border-bottom:1px solid rgba(203,213,225,0.65);
+  }
+  .proInputRow:last-child { border-bottom:none; }
+  .proInputRow label { grid-column:1 / 3; font-size:0.78rem; }
+  .proInputRow input { grid-column:1 / 2; min-width:0; font-size:16px; padding:10px; }
+  .proInputRow span { grid-column:2 / 3; white-space:nowrap; }
+  .proSelect { font-size:16px; padding:10px; }
+
+  canvas { height: 220px; }
+
+  .eqBox { grid-template-columns: 1fr; gap: 12px; }
+  .eq { padding: 14px; font-size: 0.8rem; }
+  .eq .result-val { font-size: 1.15rem; }
+
+  .ioRow { flex-direction: column; }
+  .ioRow .ioBtn { flex: 1 1 auto; padding: 12px; font-size: 0.85rem; }
+
+  #compareTable { font-size: 0.7rem; }
+  #compareTable th, #compareTable td { padding: 6px; }
+
+  .detailTableWrap { overflow:visible; padding:0; }
+  #detailTable, #detailTable tbody, #detailTable tr, #detailTable td { display:block; width:100%; }
+  #detailTable { min-width:0; font-size:0.78rem; }
+  #detailTable thead { display:none; }
+  #detailTable tr {
+    margin:12px 0;
+    padding:12px 14px;
+    border:1px solid #dbe4ef;
+    border-radius:14px;
+    background:rgba(255,255,255,0.72);
+    box-shadow:var(--shadow-sm);
+  }
+  #detailTable tr.overBudget { border-color:rgba(239,68,68,0.4); background:rgba(254,242,242,0.9); }
+  #detailTable td, #detailTable td:first-child {
+    display:grid;
+    grid-template-columns:minmax(110px,1fr) minmax(90px,auto);
+    gap:10px;
+    align-items:center;
+    padding:7px 0;
+    border-bottom:1px dashed #dbe4ef;
+    white-space:normal;
+    text-align:right;
+  }
+  #detailTable td:last-child { border-bottom:none; }
+  #detailTable td::before {
+    content:attr(data-label);
+    color:var(--text-muted);
+    font-size:0.72rem;
+    font-weight:600;
+    text-align:left;
+  }
+  #detailTable td:first-child {
+    font-size:1rem;
+    font-weight:800;
+    color:var(--accent-buy);
+  }
+  #detailTable td:first-child::before { color:var(--accent-buy); }
+  .detailSummary { grid-template-columns:1fr; gap:8px; }
+  .detailStat { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px; }
+  .detailStat span, .detailStat b { margin:0; }
+  #proBudgetWarn { line-height:1.5; }
+
+  .helpTable { display: block; overflow-x: auto; white-space: nowrap; }
+  .helpTable th, .helpTable td { font-size: 0.76rem; }
+
+  .crossBox { font-size: 0.9rem; padding: 12px; }
+  .crossBox b { font-size: 1.2rem; }
+}
+
+@media (max-width: 380px) {
+  h1 { font-size: 0.95rem; }
+  .card h2 { font-size: 0.88rem; }
+  .row .val, .phaseRow span.val { font-size: 0.9rem; padding: 3px 8px; }
+  #detailTable tr { padding:10px 12px; }
+  #detailTable td, #detailTable td:first-child { grid-template-columns:minmax(98px,1fr) minmax(78px,auto); gap:6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>持ち家君 vs 賃貸君 損得シミュレータ</h1>
+  <p class="sub">予算（可処分所得）を起点に、生涯の純資産を可視化するツール</p>
+</div>
+<div class="grid">
+  <div class="card" id="modeCard">
+    <div class="toggle modeSwitch">
+      <button type="button" data-mode="simple" class="active">お試し（かんたん計算）</button>
+      <button type="button" data-mode="pro">プロ仕様（詳細計算）</button>
+    </div>
+    <p class="note modeDescription" id="modeDescription">主要な条件をスライダーで動かし、長期的な傾向を素早く比較します。</p>
+  </div>
+
+  <div class="card" id="budgetCard">
+    <h2>共通条件・予算タイムライン</h2>
+    <div class="row"><label>返済期間（比較期間）</label><span class="val" id="years_v">35 年</span><input id="years" type="range" min="10" max="35" value="35"></div>
+    <div class="row"><label>開始時の年齢（購入時想定）</label><span class="val" id="startAge_v">35 歳</span><input id="startAge" type="range" min="20" max="70" value="35"></div>
+    <p class="note" style="margin-bottom: 16px;">ライフステージに合わせて「住居費に回せる月額」を設定できます。</p>
+    <div class="phaseRow"><span class="label">1期（1〜10年目）</span><span class="val" id="phase1Budget_v">16万円/月</span><input id="phase1Budget" type="range" min="5" max="40" value="16"></div>
+    <div class="phaseRow"><span class="label">2期（11〜20年目）</span><span class="val" id="phase2Budget_v">20万円/月</span><input id="phase2Budget" type="range" min="5" max="40" value="20"></div>
+    <div class="phaseRow"><span class="label">3期（21〜30年目）</span><span class="val" id="phase3Budget_v">20万円/月</span><input id="phase3Budget" type="range" min="5" max="40" value="20"></div>
+    <div class="phaseRow"><span class="label">リタイア（31年目〜）</span><span class="val" id="phase4Budget_v">13万円/月</span><input id="phase4Budget" type="range" min="5" max="40" value="13"></div>
+  </div>
+
+  <div class="card" id="restartCard">
+    <h2>実績ベースで再スタート（任意）</h2>
+    <div class="restartToggleRow">
+      <input type="checkbox" id="restartEnabled">
+      <label for="restartEnabled">実績値で再スタートする（ローン返済の途中で見直したい場合）</label>
+    </div>
+    <p class="note" style="margin-top:0;">購入時からの計算をスキップし、「今の実測値」からシミュレーションを再開します。繰り上げ返済や借り換えなど、これまでの経緯は一切問いません。今の残高だけを入力してください。</p>
+    <div id="restartFields">
+      <div class="row"><label>現在の年齢</label><span class="val" id="restartAge_v">50 歳</span><input id="restartAge" type="range" min="20" max="80" value="50"></div>
+      <div class="row"><label>経過年数（購入からの年数）</label><span class="val" id="restartElapsedYears_v">15年</span><input id="restartElapsedYears" type="range" min="0" max="40" value="15"></div>
+      <div class="row"><label>ローン残債（実額）</label><span class="val" id="restartLoanBalance_v">2400万円</span><input id="restartLoanBalance" type="range" min="0" max="10000" step="50" value="2400"></div>
+      <div class="row"><label>残りの返済期間</label><span class="val" id="restartLoanYearsLeft_v">15年</span><input id="restartLoanYearsLeft" type="range" min="1" max="35" value="15"></div>
+      <div class="row"><label>現在の適用金利</label><span class="val" id="restartLoanRate_v">1.20%</span><input id="restartLoanRate" type="range" min="0.2" max="7.0" step="0.05" value="1.2"></div>
+      <div class="maintHelper" style="margin-top:14px; padding:14px; background:rgba(255,255,255,0.5); border-radius:12px;">
+       <p class="note" style="margin:0 0 10px; font-weight:700; color:#334155;">繰り上げ返済 計算ヘルパー</p>
+       <div class="row">
+        <label>繰り上げ返済額</label>
+        <span class="val" style="width:auto; display:flex; align-items:center; gap:6px;">
+         <input id="prepayAmount" type="number" min="0" step="10" value="200" style="width:76px; text-align:right; border:1px solid #cbd5e1; border-radius:6px; padding:4px 6px;">万円
+        </span>
+      </div>
+      <div class="row">
+       <label>タイプ</label>
+       <select id="prepayType" class="proSelect" style="width:auto; flex:0 0 auto;">
+        <option value="shorten">期間短縮型（月返済額はそのまま）</option>
+        <option value="reduce">返済額軽減型（返済期間はそのまま）</option>
+       </select>
+      </div>
+      <p class="note" id="prepayResult" style="margin:8px 0;">試算：-</p>
+      <button type="button" id="applyPrepay" class="ioBtn" style="background:var(--accent-buy); color:#fff; padding:8px 14px; font-size:0.82rem; flex:none;">この結果を「ローン残債・残り期間」に反映</button>
+      <p class="note" id="interestSavingResult" style="margin:8px 0; font-weight:700; color:#166534;"></p>
+    </div>
+      <div class="row"><label>住居費の余りを運用した現在の残高
+      <p class="note" style="margin-top:-4px;">■説明：購入時から今まで、毎月の予算のうち住居費に使わなかった分を運用していた場合の、現在の運用残高です。特に運用していなければ0のままで構いません。</p>
+      </label><span class="val" id="restartBuySurplus_v">350万円</span><input id="restartBuySurplus" type="range" min="0" max="5000" step="10" value="350"></div>       
+      <div class="row"><label>現在の物件推定評価額（任意）
+      <p class="note">■説明：スライダーで金額を設定すると、「繰り上げのタイミングで物件を売り、賃貸に住み替えた場合」の資産額を試算できます。<br>売却額からローン残債を引いた手取り分を、賃貸側の運用資金として計算します。<br>空欄（0円）のままなら、売却益を充当しない通常の計算になります。</p>  
+      </label><span class="val" id="restartPropertyValue_v">0万円</span><input id="restartPropertyValue" type="range" min="0" max="12000" step="50" value="0"></div>
+      
+      <p class="note" style="color:var(--warn); font-weight:700;">※ プロ仕様（期間別金利・維持費）との併用は非対応です。実績再スタート中は自動的にシンプル仕様の計算方式で動きます。</p>
+      <p class="note" id="restartSummary"></p>
+    </div>
+  </div>
+
+  <div class="card buy">
+    <h2>持ち家（購入）</h2>
+    <div class="toggle type">
+      <button data-type="house" class="active">戸建て</button>
+      <button data-type="mansion">マンション</button>
+    </div>
+    <div class="toggle">
+      <button data-region="city" class="active">都市圏型</button>
+      <button data-region="local">地方型</button>
+    </div>
+    <div class="row"><label>物件総額</label><span class="val" id="totalPrice_v">6000万円</span><input id="totalPrice" type="range" min="2000" max="10000" step="100" value="6000"></div>
+    <div class="row"><label>建物比率</label><span class="val" id="buildRatio_v">33%</span><input id="buildRatio" type="range" min="5" max="80" value="33"></div>
+    <div class="row"><label>頭金</label><span class="val" id="downPayment_v">3000万円</span><input id="downPayment" type="range" min="0" max="6000" step="100" value="3000"></div>
+    <div class="row"><label>ローン金利（年）</label><span class="val" id="loanRate_v">1.50%</span><input id="loanRate" type="range" min="0.2" max="7.0" step="0.05" value="1.5"></div>
+    <div class="row"><label>ローン期間（返済期間と連動）</label><span class="val" id="loanYears_v">35年</span><input id="loanYears" type="range" min="10" max="35" value="35"></div>
+    <div class="row"><label>建物の減価年数</label><span class="val" id="buildingLife_v">30年</span><input id="buildingLife" type="range" min="15" max="55" value="30"></div>
+    <div class="row"><label>土地の年間価格変動率</label><span class="val" id="landGrowth_v">0.3%</span><input id="landGrowth" type="range" min="-2" max="3" step="0.1" value="0.3"></div>
+    <div class="row"><label id="maintLabel">維持費（税・修繕/年）</label><span class="val" id="maintRate_v">0.8%</span><input id="maintRate" type="range" min="0" max="2" step="0.1" value="0.8"></div>
+
+    <div class="maintHelper" style="margin-top:14px; padding:14px; background:rgba(255,255,255,0.5); border-radius:12px;">
+      <p class="note" style="margin:0 0 10px; font-weight:700; color:#334155;">維持費 換算ヘルパー（金額→率に自動変換）</p>
+      <div class="row">
+        <label>固定資産税（年額）</label>
+        <span class="val" style="width:auto; display:flex; align-items:center; gap:6px;">
+          <input id="maintTaxYearly" type="number" min="0" step="1" value="15" style="width:64px; text-align:right; border:1px solid #cbd5e1; border-radius:6px; padding:4px 6px;">万円/年
+        </span>
+      </div>
+      <div class="row">
+        <label>大規模修繕・その他 概算合計</label>
+        <span class="val" style="width:auto; display:flex; align-items:center; gap:6px;">
+          <input id="maintLumpTotal" type="number" min="0" step="10" value="1000" style="width:76px; text-align:right; border:1px solid #cbd5e1; border-radius:6px; padding:4px 6px;">万円
+        </span>
+      </div>
+      <p class="note" id="maintHelperResult" style="margin:8px 0;">試算：-</p>
+      <button type="button" id="applyMaintRate" class="ioBtn" style="background:var(--accent-buy); color:#fff; padding:8px 14px; font-size:0.82rem; flex:none;">この率を反映</button>
+    </div>
+
+    <p class="note" id="mansionNote" style="display:none;">マンションは管理費＋修繕積立金を想定。築15年で1.5倍、築25年で2倍に段階増額します。</p>
+    <div class="warn" id="buyWarn"></div>
+  </div>
+
+  <div class="card rent">
+    <h2>賃貸</h2>
+    <div class="row"><label>想定家賃（月額）</label><span class="val" id="rent_v">14万円</span><input id="rent" type="range" min="5" max="30" value="14"></div>
+    <div class="row"><label>家賃上昇率（年）</label><span class="val" id="rentGrowth_v">0.2%</span><input id="rentGrowth" type="range" min="-1" max="2" step="0.1" value="0.2"></div>
+    <div class="warn" id="rentWarn"></div>
+  </div>
+
+  <div class="card invest">
+    <h2>運用</h2>
+    <div class="row"><label>運用利回り（年）</label><span class="val" id="investReturn_v">4.0%</span><input id="investReturn" type="range" min="0" max="8" step="0.1" value="4"></div>
+    <div class="row" style="margin-top:24px;"><label style="flex:1 1 100%; cursor:pointer;"><input type="checkbox" id="investDownPayment" checked> 賃貸側：頭金相当額を運用に回す</label></div>
+    <div class="row"><label style="flex:1 1 100%; cursor:pointer;"><input type="checkbox" id="investSurplus" checked> 毎月の予算余剰を運用に回す</label></div>
+    <p class="note">購入側：ローン＋維持費が予算より少なければ、その差額が運用されます。<br>賃貸側：家賃が予算より少なければ、その差額が運用されます。</p>
+  </div>
+
+  <div class="card proOnly" id="proCard">
+    <h2>プロ仕様・期間別条件</h2>
+    <p class="note" style="margin-top:0;">将来を予測する数値ではなく、比較したいシナリオを入力してください。空欄の期間は直前の値を引き継ぎます。</p>
+    <div class="proGrid">
+      <section class="proPanel">
+        <h3>住宅ローン金利</h3>
+        <p class="note">固定金利は現在の「ローン金利」を全期間に使用します。期間別金利では、各期間の開始時に残債と残存期間から返済額を再計算します。</p>
+        <div class="proOption">
+          <label for="rateMode">金利設定</label>
+          <select id="rateMode" class="proSelect">
+            <option value="fixed">固定金利（全期間一定）</option>
+            <option value="phased">期間別金利（変動・固定期間選択型）</option>
+          </select>
+        </div>
+        <div id="proRateFields" class="proRateFields hidden">
+          <div class="proInputRow"><label for="proRate1">1～10年目</label><input id="proRate1" type="number" min="0" max="20" step="0.05" value="1.50"><span>％</span></div>
+          <div class="proInputRow"><label for="proRate2">11～20年目</label><input id="proRate2" type="number" min="0" max="20" step="0.05" value="2.00"><span>％</span></div>
+          <div class="proInputRow"><label for="proRate3">21～30年目</label><input id="proRate3" type="number" min="0" max="20" step="0.05" value="2.50"><span>％</span></div>
+          <div class="proInputRow"><label for="proRate4">31年目以降</label><input id="proRate4" type="number" min="0" max="20" step="0.05" value="3.00"><span>％</span></div>
+        </div>
+      </section>
+
+      <section class="proPanel">
+        <h3>維持費（固定資産税・修繕等）</h3>
+        <p class="note">物件総額に対する年間比率を期間別に入力します。戸建て・マンションとも、ここで入力した値をそのまま使用します。</p>
+        <div class="proInputRow"><label for="proMaint1">1～10年目</label><input id="proMaint1" type="number" min="0" max="10" step="0.1" value="0.8"><span>％/年</span></div>
+        <div class="proInputRow"><label for="proMaint2">11～20年目</label><input id="proMaint2" type="number" min="0" max="10" step="0.1" value="0.9"><span>％/年</span></div>
+        <div class="proInputRow"><label for="proMaint3">21～30年目</label><input id="proMaint3" type="number" min="0" max="10" step="0.1" value="1.1"><span>％/年</span></div>
+        <div class="proInputRow"><label for="proMaint4">31年目以降</label><input id="proMaint4" type="number" min="0" max="10" step="0.1" value="1.2"><span>％/年</span></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="card" id="chartCard">
+    <h2>N年後の純資産比較</h2>
+    <canvas id="chart"></canvas>
+
+    <div class="crossBox">資産が逆転するタイミング：<b id="crossYear">-</b></div>
+    <div class="crossBox" id="planCompareBox" style="display:none; background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-color:#bfdbfe; color:#1e3a8a;">
+      当初計画の最終資産：<b id="planOrigFinal">-</b>　／　今の設定の最終資産：<b id="planNowFinal">-</b>　／　差額：<b id="planDiff">-</b>
+    </div>
+    <p class="note" id="planCompareNote" style="display:none; margin-top:6px;"></p>
+    <div class="crossBox" id="prepayCompareBox" style="display:none; background:linear-gradient(135deg, #fef9c3 0%, #fde68a 100%); border-color:#fcd34d; color:#78350f;">
+      繰り上げ返済した場合：<b id="prepayFinalA">-</b>　／　同額を運用に回した場合：<b id="prepayFinalB">-</b>　／　差額：<b id="prepayDiff">-</b>
+    </div>
+      <p class="note" id="prepayCompareNote" style="display:none; margin-top:6px;"></p>
+    <div class="eqBox">
+      <div class="eq buy">
+        <span class="term">持ち家の純資産 内訳</span>
+        建物 <b id="eqBuild">-</b> ＋ 土地 <b id="eqLand">-</b><br>
+        − ローン残債 <b id="eqLoan">-</b><br>
+        ＋ 余剰金運用 <b id="eqBuySurplus">-</b>
+        <span class="result-val" id="buyResult">-</span>
+      </div>
+      <div class="eq rent">
+        <span class="term">賃貸＋運用の純資産 内訳</span>
+        頭金の運用 <b id="eqRentInit">-</b><br>
+        ＋ 余剰金運用 <b id="eqRentSurplus">-</b>
+        <span class="result-val" id="rentResult">-</span>
+      </div>
+    </div>
+
+    <div class="ioRow">
+      <button id="saveBtn" class="ioBtn">💾 この条件を保存（JSONダウンロード）</button>
+      <label class="ioBtn loadLabel" for="loadInput">📂 保存した条件を読み込む
+        <input id="loadInput" type="file" accept="application/json" style="display:none;">
+      </label>
+      <button id="shareBtn" class="ioBtn">🔗 このURLをコピー（端末間移動用）</button>
+    </div>
+    <div id="ioStatus"></div>
+    <p class="note" style="margin-top:24px;">※税制優遇（住宅ローン控除等）、仲介手数料、譲渡税、更新費用等は含めていません。金利・運用利回り・地価変動率などの「不確実な要素」はスライダーで自由に動かして傾向を確認してください。</p>
+  </div>
+
+  <div class="card proOnly" id="detailCard">
+    <h2>プロ仕様・期間別結果</h2>
+    <p class="note" style="margin-top:0;">10年ごと（検討終了年を含む）の返済状況と資産を表示します。金額単位は万円です。</p>
+    <div class="warn" id="proBudgetWarn"></div>
+    <div class="detailTableWrap">
+      <table id="detailTable">
+        <thead><tr><th>時点</th><th>適用金利</th><th>月返済額</th><th>月維持費</th><th>月住居費</th><th>月予算</th><th>判定</th><th>元金累計</th><th>利息累計</th><th>残債</th><th>維持費累計</th><th>持ち家純資産</th><th>賃貸純資産</th><th>資産差</th></tr></thead>
+        <tbody id="detailBody"></tbody>
+      </table>
+    </div>
+    <div class="detailSummary">
+      <div class="detailStat"><span>ローン総返済額</span><b id="totalLoanPaid">－</b></div>
+      <div class="detailStat"><span>うち利息総額</span><b id="totalInterestPaid">－</b></div>
+      <div class="detailStat"><span>維持費累計</span><b id="totalMaintPaid">－</b></div>
+    </div>
+  </div>
+
+  <div class="card" id="compareCard">
+    <h2>比較表</h2>
+    <p class="note" style="margin-top:0;">これまで試した条件を一覧で並べて比較できます。「現在の条件を追加」で今の設定を1行加えるか、保存済みJSONを複数選んで読み込んでください。</p>
+    <div class="ioRow">
+      <button id="addCompareBtn" class="ioBtn">➕ 現在の条件を比較表に追加</button>
+      <label class="ioBtn loadLabel" for="loadMultiInput">📂 保存済みJSONを複数読み込んで追加
+        <input id="loadMultiInput" type="file" accept="application/json" multiple style="display:none;">
+      </label>
+      <button id="exportCsvBtn" class="ioBtn">📊 比較表をCSVダウンロード</button>
+    </div>
+    <div style="overflow-x:auto; margin-top:16px;">
+      <table id="compareTable">
+        <thead><tr id="compareHeadRow"></tr></thead>
+        <tbody id="compareBody"></tbody>
+      </table>
+    </div>
+    <p class="note" id="compareEmptyNote">まだ比較データがありません。</p>
+  </div>
+
+  <div class="card help" id="helpCard">
+    <h2>ヘルプ</h2>
+
+    <button class="helpToggle" data-target="help1">
+      <span>① 自分の地域の基礎数値を調べる</span><span class="chev">▶</span>
+    </button>
+    <div class="helpBody" id="help1">
+      <p class="note" style="margin:0 0 8px;">プリセット（都市圏型／地方型）はあくまで"たたき台"です。自分が住む・住もうとしている地域の実勢は、以下のソースで確認するのが一番正確です。</p>
+      <table class="helpTable">
+        <thead><tr><th>調べたいこと</th><th>ソース</th><th>リンク</th></tr></thead>
+        <tbody>
+          <tr><td>地価公示・実勢の取引価格</td><td>国交省 不動産情報ライブラリ</td><td><a href="https://www.reinfolib.mlit.go.jp/" target="_blank" rel="noopener">reinfolib.mlit.go.jp</a></td></tr>
+          <tr><td>周辺の家賃相場</td><td>賃貸検索サイトで同条件のエリア検索</td><td>SUUMO / ホームズ 等</td></tr>
+          <tr><td>人口・世帯数の将来推計</td><td>国立社会保障・人口問題研究所</td><td><a href="https://www.ipss.go.jp/" target="_blank" rel="noopener">ipss.go.jp</a></td></tr>
+          <tr><td>マンション修繕積立金の相場感</td><td>国交省 マンション修繕積立金ガイドライン</td><td>国交省サイト内で検索</td></tr>
+          <tr><td>空き家率（流動性の参考）</td><td>総務省統計局 住宅・土地統計調査</td><td><a href="https://www.stat.go.jp/" target="_blank" rel="noopener">stat.go.jp</a></td></tr>
+          <tr><td>住宅ローン金利の現在の相場</td><td>各金融機関の金利情報／住宅金融支援機構</td><td><a href="https://www.flat35.com/" target="_blank" rel="noopener">flat35.com</a> 等</td></tr>
+        </tbody>
+      </table>
+      <p class="note" style="margin-top:10px;">※これらの数値をそのままスライダーに入れる必要はありません。「だいたいこのくらいの幅で動きうる」というレンジ感をつかむための参考情報として使ってください。</p>
+    </div>
+
+    <button class="helpToggle" data-target="help2">
+      <span>② シミュレータの使い方のコツ</span><span class="chev">▶</span>
+    </button>
+    <div class="helpBody" id="help2">
+      <ul class="tipList">
+        <li><b>①まず一度、何もいじらず結果を見る。</b>デフォルト値のまま「持ち家」と「賃貸＋運用」の内訳を眺めて、感覚を掴んでから動かし始めるとブレにくくなります。</li>
+        <li><b>②1つのパラメータだけ動かして、結果の変化を見る。</b>同時に複数動かすと「何が効いたか」が分からなくなります。まず金利だけ、次に地価変動率だけ、というように1つずつ試すのがおすすめです。</li>
+        <li><b>③「強気」「中央」「弱気」の3パターンを作って比較表に残す。</b>単一の予測値を追い求めるのではなく、幅を持たせて並べることで、どんな未来が来ても対応できる判断がしやすくなります。</li>
+        <li><b>④予算オーバーの警告が出たら、まず予算タイムラインを見直す。</b>ローンの条件をいじる前に、そもそもの4フェーズの予算配分が実態に合っているか確認しましょう。</li>
+        <li><b>⑤「逆転する年」だけを追いかけすぎない。</b>これは1つの目安であって正解ではありません。逆転しなくても、住み続けたい・resaleしたい等、金額以外の価値観も踏まえて判断してください。</li>
+        <li><b>⑥貯金の取り崩しなど、特定期間だけ余分にかかる出費は、その期間の予算スライダーを一時的に上げて表現する。</b>新しい項目を増やすより、既存の4フェーズ構造で近似する方がシンプルです。</li>
+        <li><b>⑦ローン返済の途中で見直したくなったら「実績ベースで再スタート」を使う。</b>繰り上げ返済や借り換えの経緯を再現する必要はなく、今の残高・金利・残り期間だけを入れれば、そこから先を試算できます。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const ids = ["years","startAge","phase1Budget","phase2Budget","phase3Budget","phase4Budget",
+  "totalPrice","buildRatio","downPayment","loanRate","loanYears","buildingLife","landGrowth","maintRate",
+  "rent","rentGrowth","investReturn"];
+const proIds = ["proRate1","proRate2","proRate3","proRate4","proMaint1","proMaint2","proMaint3","proMaint4"];
+const restartIds = ["restartAge","restartElapsedYears","restartLoanBalance","restartLoanYearsLeft","restartLoanRate","restartBuySurplus","restartPropertyValue"];
+const restartDefaults = {restartAge:50, restartElapsedYears:15, restartLoanBalance:2400, restartLoanYearsLeft:15, restartLoanRate:1.2, restartBuySurplus:350, restartPropertyValue:0};
+
+const unitMap = {years:"年", startAge:"歳",
+  phase1Budget:"万円/月",phase2Budget:"万円/月",phase3Budget:"万円/月",phase4Budget:"万円/月",
+  totalPrice:"万円",buildRatio:"%",downPayment:"万円",loanRate:"%",loanYears:"年",
+  buildingLife:"年",landGrowth:"%",maintRate:"%",rent:"万円",rentGrowth:"%",investReturn:"%",
+  restartAge:"歳", restartElapsedYears:"年", restartLoanBalance:"万円",
+  restartLoanYearsLeft:"年", restartLoanRate:"%", restartBuySurplus:"万円", restartPropertyValue:"万円"};
+const decimalIds = ["loanRate","landGrowth","maintRate","rentGrowth","investReturn","restartLoanRate"];
+
+function fmt(id){
+  const v = parseFloat($(id).value);
+  const d = decimalIds.includes(id) ? 2 : 0;
+  $(id+"_v").textContent = v.toFixed(d).replace(/\.00$/,"") + unitMap[id];
+}
+
+let propertyType = "house";
+let prepaySnapshot = null; // ★繰り上げ返済「反映」直前の状態を保存
+let prepaySnapshotAmount = 0; // ★その時点で繰り上げに使った金額
+let prepayMode = null; // ★"shorten" / "reduce" / null(繰り上げ未実施、実績反映のみ)
+let prepayReducedPayment = null; // ★返済額軽減型を選んだ場合の新しい月返済額（万円）
+let calculationMode = "simple";
+const regionPresets = { city:{totalPrice:6000, landGrowth:0.5}, local:{totalPrice:6000, landGrowth:-0.5} };
+const typePresets = {
+  house:  {buildRatio:33, buildingLife:30, maintRate:0.8},
+  mansion:{buildRatio:15, buildingLife:47, maintRate:0.5}
+};
+
+// ★年齢の基準点：再スタートONなら「現在の年齢」、OFFなら「開始時の年齢」
+function baseAgeForCalc(){
+  return $("restartEnabled").checked
+    ? parseFloat($("restartAge").value)
+    : parseFloat($("startAge").value);
+}
+
+document.querySelectorAll(".toggle button[data-region]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".toggle button[data-region]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const p = regionPresets[btn.dataset.region];
+    $("totalPrice").value=p.totalPrice; $("landGrowth").value=p.landGrowth;
+    update();
+  });
+});
+
+document.querySelectorAll(".toggle.type button[data-type]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".toggle.type button[data-type]").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    propertyType = btn.dataset.type;
+    const p = typePresets[propertyType];
+    $("buildRatio").value=p.buildRatio; $("buildingLife").value=p.buildingLife; $("maintRate").value=p.maintRate;
+    $("maintLabel").textContent = propertyType==="mansion" ? "管理費＋修繕積立金（年）" : "維持費（税・修繕/年）";
+    $("mansionNote").style.display = propertyType==="mansion" ? "block" : "none";
+    update();
+  });
+});
+
+ids.filter(id=>id!=="years" && id!=="loanYears").forEach(id=>$(id).addEventListener("input", update));
+$("years").addEventListener("input", ()=>{
+  $("loanYears").value = $("years").value;
+  update();
+});
+$("loanYears").addEventListener("input", ()=>{
+  $("years").value = $("loanYears").value;
+  update();
+});
+["investDownPayment","investSurplus"].forEach(id=>$(id).addEventListener("change", update));
+proIds.forEach(id=>$(id).addEventListener("input", update));
+$("rateMode").addEventListener("change", ()=>{
+  $("proRateFields").classList.toggle("hidden", $("rateMode").value!=="phased");
+  update();
+});
+
+restartIds.forEach(id=>$(id).addEventListener("input", update));
+$("restartEnabled").addEventListener("change", ()=>{
+  const isOn = $("restartEnabled").checked;
+  $("restartFields").style.display = isOn ? "block" : "none";
+  prepaySnapshot = null; // ON/OFF切り替え時は比較をリセット
+  prepayMode = null;
+  prepaySnapshotAmount = 0;
+  prepayReducedPayment = null;
+  if(!isOn){
+    // ★OFFにした瞬間、再スタート関連の入力値をすべてデフォルトに戻す
+    restartIds.forEach(id => { $(id).value = restartDefaults[id]; });
+    $("prepayAmount").value = 200;
+    $("prepayType").value = "shorten";
+  }
+  update();
+});
+
+document.querySelectorAll(".modeSwitch button[data-mode]").forEach(btn=>{
+  btn.addEventListener("click", ()=>setMode(btn.dataset.mode));
+});
+
+function setMode(mode, shouldUpdate=true){
+  calculationMode = mode === "pro" ? "pro" : "simple";
+  document.body.classList.toggle("pro-mode", calculationMode === "pro");
+  document.querySelectorAll(".modeSwitch button[data-mode]").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.mode===calculationMode);
+  });
+  $("modeDescription").textContent = calculationMode === "pro"
+    ? "期間別の金利・維持費と返済内訳を使い、複数の条件を詳しく検証します。"
+    : "主要な条件をスライダーで動かし、長期的な傾向を素早く比較します。";
+  if(shouldUpdate) update();
+}
+
+const PHASE_LEN = 10;
+function budgetForMonth(m, p1b, p2b, p3b, p4b){
+  const yr = (m-1)/12;
+  if(yr < PHASE_LEN) return p1b;
+  if(yr < PHASE_LEN*2) return p2b;
+  if(yr < PHASE_LEN*3) return p3b;
+  return p4b;
+}
+
+function phaseIndexForMonth(m){
+  return Math.min(3, Math.floor((m-1)/(PHASE_LEN*12)));
+}
+
+function numberOrFallback(id, fallback){
+  const value = parseFloat($(id).value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function paymentFor(balance, annualRate, remainingMonths){
+  if(balance<=0 || remainingMonths<=0) return 0;
+  const monthlyRate = annualRate/12;
+  return monthlyRate===0
+    ? balance/remainingMonths
+    : balance*monthlyRate/(1-Math.pow(1+monthlyRate,-remainingMonths));
+}
+function computePrepayment(){
+  const balance = parseFloat($("restartLoanBalance").value) || 0;
+  const rate = parseFloat($("restartLoanRate").value)/100;
+  const monthsLeft = (parseInt($("restartLoanYearsLeft").value) || 1) * 12;
+  const prepay = Math.max(parseFloat($("prepayAmount").value) || 0, 0);
+  const type = $("prepayType").value;
+
+  const monthlyRate = rate/12;
+  const oldPayment = paymentFor(balance, rate, monthsLeft);
+  const newBalance = Math.max(balance - prepay, 0);
+
+  let newMonths = monthsLeft;
+  let newPayment = oldPayment;
+
+  if(type === "shorten"){
+    if(newBalance<=0){
+      newMonths = 0;
+    }else if(monthlyRate===0){
+      newMonths = newBalance / oldPayment;
+    }else{
+      const ratio = newBalance*monthlyRate/oldPayment;
+      newMonths = ratio >= 1 ? monthsLeft : -Math.log(1-ratio)/Math.log(1+monthlyRate);
+    }
+  }else{
+    newPayment = paymentFor(newBalance, rate, monthsLeft);
+  }
+
+  return { oldPayment, newBalance, newMonths, newPayment, monthsLeft };
+}
+function computeInterestSaving(){
+  const balance = parseFloat($("restartLoanBalance").value) || 0;
+  const rate = parseFloat($("restartLoanRate").value)/100;
+  const monthsLeft = (parseInt($("restartLoanYearsLeft").value) || 1) * 12;
+  const r = computePrepayment();
+
+  // 繰り上げなし：現在の残債・現在の月返済額のまま、残り期間で完済した場合の総利息
+  let totalInterestBefore = 0;
+  let bal1 = balance;
+  for(let i=0;i<monthsLeft && bal1>0;i++){
+    const interest = bal1*(rate/12);
+    const principal = Math.min(r.oldPayment-interest, bal1);
+    totalInterestBefore += interest;
+    bal1 -= principal;
+  }
+
+  // 繰り上げあり：新しい残債・同じ月返済額(期間短縮型)で完済するまでの総利息
+  let totalInterestAfter = 0;
+  let bal2 = r.newBalance;
+  const monthlyRate = rate/12;
+  for(let i=0;i<Math.ceil(r.newMonths) && bal2>0;i++){
+    const interest = bal2*monthlyRate;
+    const principal = Math.min(r.oldPayment-interest, bal2);
+    totalInterestAfter += interest;
+    bal2 -= principal;
+  }
+
+  return totalInterestBefore - totalInterestAfter;
+}
+function updatePrepayHelper(){
+  const r = computePrepayment();
+  const newYears = r.newMonths/12;
+  $("prepayResult").textContent = $("prepayType").value === "shorten"
+    ? `試算：月返済額 約${r.oldPayment.toFixed(1)}万円のまま、繰り上げ後の残債${Math.round(r.newBalance).toLocaleString()}万円を新しい残り期間 約${newYears.toFixed(1)}年で完済`
+    : `試算：返済期間${(r.monthsLeft/12).toFixed(0)}年のまま、繰り上げ後の残債${Math.round(r.newBalance).toLocaleString()}万円の新しい月返済額は約${r.newPayment.toFixed(1)}万円`;
+
+  if($("prepayType").value === "shorten"){
+    const saving = computeInterestSaving();
+    const shortenedYears = (r.monthsLeft - r.newMonths)/12;
+    $("interestSavingResult").textContent =
+      `💰 完済が約${shortenedYears.toFixed(1)}年早まり、本来払うはずだった利息のうち約${Math.round(saving).toLocaleString()}万円を払わずに済みます。`;
+  }else{
+    const monthlySaving = r.oldPayment - r.newPayment;
+    $("interestSavingResult").textContent =
+  `💰 月々の返済額が約${monthlySaving.toFixed(1)}万円減り、その分は毎月運用に回ります(返済期間は変わりません)。`;
+  }
+}
+
+function updateMaintHelper(){
+  const tax = parseFloat($("maintTaxYearly").value) || 0;
+  const lump = parseFloat($("maintLumpTotal").value) || 0;
+  const years = parseInt($("loanYears").value) || 35;
+  const totalPrice = parseFloat($("totalPrice").value) || 1;
+  const annual = tax + lump / years;
+  const rate = annual / totalPrice * 100;
+  $("maintHelperResult").textContent =
+    `試算：固定資産税${tax}万円/年 ＋ 修繕${lump}万円÷${years}年 ＝ 年平均${annual.toFixed(1)}万円/年 → 率換算 ${rate.toFixed(2)}%`;
+  return rate;
+}
+["maintTaxYearly","maintLumpTotal","totalPrice","loanYears"].forEach(id=>{
+  $(id).addEventListener("input", updateMaintHelper);
+});
+$("applyMaintRate").addEventListener("click", ()=>{
+  const rate = updateMaintHelper();
+  $("maintRate").value = rate.toFixed(2);
+  update();
+});
+["prepayAmount","prepayType","restartLoanBalance","restartLoanRate","restartLoanYearsLeft"].forEach(id=>{
+  $(id).addEventListener("input", updatePrepayHelper);
+});
+$("applyPrepay").addEventListener("click", ()=>{
+  prepaySnapshot = computeSummary(collectState()); // 変更前の状態を保存しておく
+  prepaySnapshotAmount = Math.max(parseFloat($("prepayAmount").value) || 0, 0);
+  prepayMode = $("prepayType").value; // "shorten" または "reduce" を記録
+  const r = computePrepayment();
+  if($("prepayType").value === "shorten"){
+    $("restartLoanYearsLeft").value = Math.max(1, Math.round(r.newMonths/12));
+    prepayReducedPayment = null; // 期間短縮型では使わない
+  }else{
+    prepayReducedPayment = r.newPayment; // 返済額軽減型：新しい月返済額を保持
+  }
+  update();
+});
+function simulate(){
+  const years = parseInt($("loanYears").value);
+  const p1b = parseFloat($("phase1Budget").value);
+  const p2b = parseFloat($("phase2Budget").value);
+  const p3b = parseFloat($("phase3Budget").value);
+  const p4b = parseFloat($("phase4Budget").value);
+
+  const totalPrice = parseFloat($("totalPrice").value);
+  const buildRatio = parseFloat($("buildRatio").value)/100;
+  const downPayment = parseFloat($("downPayment").value);
+  const loanRate = parseFloat($("loanRate").value)/100;
+  const loanYears = parseInt($("loanYears").value);
+  const buildingLife = parseInt($("buildingLife").value);
+  const landGrowth = parseFloat($("landGrowth").value)/100;
+  const maintRate = parseFloat($("maintRate").value)/100;
+  const rent0 = parseFloat($("rent").value);
+  const rentGrowth = parseFloat($("rentGrowth").value)/100;
+  const investReturn = parseFloat($("investReturn").value)/100;
+  const investDownPayment = $("investDownPayment").checked;
+  const investSurplus = $("investSurplus").checked;
+
+  const restartOn = $("restartEnabled").checked;
+  const elapsedYears = restartOn ? parseFloat($("restartElapsedYears").value) : 0;
+  const baseAge = baseAgeForCalc(); // ★年齢の基準点
+  const simYears = restartOn ? Math.max(years - elapsedYears, 1) : years; // ★実際にシミュレーションする残り年数
+
+  const buildingPrice = totalPrice*buildRatio, landPrice = totalPrice*(1-buildRatio);
+  const loanAmount = Math.max(totalPrice-downPayment,0);
+  const investMonthly = investReturn/12;
+
+  const isPro = !restartOn && calculationMode === "pro";
+  const usePhasedRates = isPro && $("rateMode").value === "phased";
+  const rateValues = [];
+  const maintValues = [];
+  let priorRate = loanRate*100;
+  let priorMaint = maintRate*100;
+  for(let i=0;i<4;i++){
+    priorRate = numberOrFallback(`proRate${i+1}`, priorRate);
+    priorMaint = numberOrFallback(`proMaint${i+1}`, priorMaint);
+    rateValues.push(priorRate/100);
+    maintValues.push(priorMaint/100);
+  }
+
+  const restartLoanYearsLeft = restartOn ? parseInt($("restartLoanYearsLeft").value) : null;
+  const n = restartOn ? restartLoanYearsLeft*12 : loanYears*12;
+  const restartRate = restartOn ? parseFloat($("restartLoanRate").value)/100 : null;
+  let balance = restartOn
+    ? Math.max(parseFloat($("restartLoanBalance").value) - prepaySnapshotAmount, 0)
+    : loanAmount;
+  let buySurplusPool = restartOn ? parseFloat($("restartBuySurplus").value) : 0;
+  let rentInitialPool;
+
+  if(restartOn){
+    const propVal = parseFloat($("restartPropertyValue").value);
+    if(propVal > 0){
+      rentInitialPool = Math.max(propVal - balance, 0); // 実際に売却する場合はこちらを優先
+    }else{
+      // 評価額が未入力の場合は「頭金をそのまま経過年数分運用していたら」を仮定
+      rentInitialPool = investDownPayment ? downPayment * Math.pow(1+investReturn, elapsedYears) : 0;
+    }
+    }else{
+    rentInitialPool = investDownPayment ? downPayment : 0;
+    }
+  let rentSurplusPool = 0;
+  let buyOverBudgetCount = 0, rentOverBudgetCount = 0;
+  let currentAnnualRate = restartOn ? restartRate : (usePhasedRates ? rateValues[0] : loanRate);
+  let monthlyPayment = (restartOn && prepayReducedPayment !== null)
+    ? prepayReducedPayment
+    : paymentFor(balance, currentAnnualRate, n);
+  let cumulativePrincipal = 0;
+  let cumulativeInterest = 0;
+  let cumulativeLoanPaid = 0;
+  let cumulativeMaint = 0;
+
+  const buySeries=[], rentSeries=[], yearDetails=[]; let crossYear=null;
+
+    for(let m=1; m<=simYears*12; m++){
+    const yearIndex = Math.floor((m-1)/12);
+    const budget = budgetForMonth(m,p1b,p2b,p3b,p4b);
+
+    const phaseIndex = phaseIndexForMonth(m);
+    if(usePhasedRates && m<=n && (m===1 || (m-1)%(PHASE_LEN*12)===0)){
+      currentAnnualRate = rateValues[phaseIndex];
+      monthlyPayment = paymentFor(balance, currentAnnualRate, n-m+1);
+    }
+
+    let actualLoanPayment = 0;
+    if(balance>0 && m<=n){
+      const interest = balance*(currentAnnualRate/12);
+      const scheduledPrincipal = Math.max(monthlyPayment-interest,0);
+      const principal = Math.min(scheduledPrincipal, balance);
+      actualLoanPayment = interest + principal;
+      balance = Math.max(balance-principal,0);
+      cumulativePrincipal += principal;
+      cumulativeInterest += interest;
+      cumulativeLoanPaid += actualLoanPayment;
+    }
+
+    const activeMaintRate = isPro ? maintValues[phaseIndex] : maintRate;
+    let maintMonthly = totalPrice*activeMaintRate/12;
+    const effectiveYearIndex = elapsedYears + yearIndex;
+    if(!isPro && propertyType==="mansion"){
+      if(effectiveYearIndex>=25) maintMonthly *= 2.0;
+      else if(effectiveYearIndex>=15) maintMonthly *= 1.5;
+    }
+    cumulativeMaint += maintMonthly;
+
+    const buyCost = actualLoanPayment + maintMonthly;
+    const rentCost = rent0*Math.pow(1+rentGrowth, yearIndex);
+
+    buySurplusPool *= (1+investMonthly);
+    rentInitialPool *= (1+investMonthly);
+    rentSurplusPool *= (1+investMonthly);
+
+    if(buyCost > budget) buyOverBudgetCount++;
+    if(rentCost > budget) rentOverBudgetCount++;
+
+    if(investSurplus){
+      if(budget-buyCost>0) buySurplusPool += (budget-buyCost);
+      if(budget-rentCost>0) rentSurplusPool += (budget-rentCost);
+    }
+
+    if(m%12===0){
+      const yr=m/12;
+      const effectiveYr = elapsedYears + yr;
+      const buildingValue = Math.max(buildingPrice*(1-effectiveYr/buildingLife),0);
+      const landValue = landPrice*Math.pow(1+landGrowth,effectiveYr);
+      const buyNet = (buildingValue+landValue) - balance + buySurplusPool;
+      const rentNet = rentInitialPool + rentSurplusPool;
+      buySeries.push(buyNet); rentSeries.push(rentNet);
+      yearDetails.push({
+        year:yr,
+        age: baseAge + yr, // ★この時点の年齢
+        annualRate:currentAnnualRate,
+        monthlyPayment:m<=n ? monthlyPayment : 0,
+        maintMonthly,
+        housingCost:buyCost,
+        budget,
+        overBudget:buyCost>budget,
+        cumulativePrincipal,
+        cumulativeInterest,
+        cumulativeLoanPaid,
+        balance,
+        cumulativeMaint,
+        buyNet,
+        rentNet,
+        difference:buyNet-rentNet
+      });
+      if(crossYear===null && yr>1){
+        const pB=buySeries[yr-2], pR=rentSeries[yr-2];
+        if((pB-pR)*(buyNet-rentNet)<0) crossYear=yr;
+      }
+    }
+  }
+ 
+  const buildingValueFinal = Math.max(buildingPrice*(1-(elapsedYears+simYears)/buildingLife),0);
+  const landValueFinal = landPrice*Math.pow(1+landGrowth,elapsedYears+simYears);
+  
+  return {
+    buySeries,rentSeries,crossYear,years:simYears,buyOverBudgetCount,rentOverBudgetCount,
+    buildingValueFinal, landValueFinal, loanBalanceFinal:balance, buySurplusFinal:buySurplusPool,
+    rentInitialFinal:rentInitialPool, rentSurplusFinal:rentSurplusPool,
+    yearDetails,cumulativePrincipal,cumulativeInterest,cumulativeLoanPaid,cumulativeMaint,
+    baseAge // ★呼び出し側（グラフ・逆転年表示）で使う
+  };
+}
+function drawChart(buySeries, rentSeries, years, baseAge, overlays=[]){
+  const canvas=$("chart"); const dpr=window.devicePixelRatio||1;
+  const w=canvas.clientWidth, h=canvas.clientHeight || 350;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+
+  let minAge = baseAge, maxAge = baseAge+years-1;
+  overlays.forEach(o=>{
+    minAge = Math.min(minAge, o.res.baseAge);
+    maxAge = Math.max(maxAge, o.res.baseAge+o.res.years-1);
+  });
+  const ageSpan = Math.max(maxAge-minAge,1);
+
+  let all = buySeries.concat(rentSeries);
+  overlays.forEach(o=>{ all = all.concat(o.res.buySeries, o.res.rentSeries); });
+  const maxV=Math.max(...all,0), minV=Math.min(...all,0);
+  const padL=50, padR=20, padT= overlays.length ? 36 : 20, padB=30;
+
+  const scaleXAge = age => padL + (w-padL-padR)*(age-minAge)/ageSpan;
+  const scaleY = v => h-padB-(h-padT-padB)*(v-minV)/((maxV-minV)||1);
+
+  if(minV < 0) {
+    ctx.strokeStyle="rgba(0,0,0,0.1)"; ctx.lineWidth=1; ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(padL,scaleY(0)); ctx.lineTo(w-padR,scaleY(0)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawSeries(series, startAge, colorHex, colorRgb, opts={}) {
+    const {dash=[], fill=true} = opts;
+    if(fill){
+      const grad = ctx.createLinearGradient(0, padT, 0, h-padB);
+      grad.addColorStop(0, `rgba(${colorRgb}, 0.2)`);
+      grad.addColorStop(1, `rgba(${colorRgb}, 0.0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(scaleXAge(startAge), scaleY(minV));
+      series.forEach((v,i) => ctx.lineTo(scaleXAge(startAge+i), scaleY(v)));
+      ctx.lineTo(scaleXAge(startAge+series.length-1), scaleY(minV));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.strokeStyle = colorHex;
+    ctx.lineWidth = dash.length ? 2 : 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash(dash);
+    ctx.beginPath();
+    series.forEach((v,i)=>{ i===0 ? ctx.moveTo(scaleXAge(startAge+i),scaleY(v)) : ctx.lineTo(scaleXAge(startAge+i),scaleY(v)); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // 破線オーバーレイ（当初計画・繰り上げ返済前など）
+  overlays.forEach(o=>{
+    drawSeries(o.res.buySeries, o.res.baseAge, "#3b82f6", "59, 130, 246", {dash:o.dash, fill:false});
+    drawSeries(o.res.rentSeries, o.res.baseAge, "#f97316", "249, 115, 22", {dash:o.dash, fill:false});
+  });
+
+  // 実線（今の設定・実績反映後）
+  drawSeries(buySeries, baseAge, "#3b82f6", "59, 130, 246", {dash:[], fill:true});
+  drawSeries(rentSeries, baseAge, "#f97316", "249, 115, 22", {dash:[], fill:true});
+
+  // 「現在」の縦線マーカー
+  if(overlays.length && baseAge > minAge){
+    const x = scaleXAge(baseAge);
+    ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, h-padB); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#475569"; ctx.font = "700 11px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(`現在(${baseAge}歳)`, x, padT - 22);
+  }
+
+  // 凡例（線種の意味）
+  if(overlays.length){
+    let lx = padL, ly = 12;
+    ctx.font = "600 10px sans-serif"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    const legendItems = [{dash:[], label:"当初の設定"}].concat(overlays.map(o=>({dash:o.dash, label:o.label})));
+      legendItems.forEach(item=>{
+      ctx.strokeStyle = "#64748b"; ctx.lineWidth = 2; ctx.setLineDash(item.dash);
+      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx+18, ly); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#475569";
+      ctx.fillText(item.label, lx+22, ly);
+      lx += 22 + ctx.measureText(item.label).width + 16;
+    });
+    ctx.textBaseline = "alphabetic";
+  }
+
+  ctx.fillStyle="#64748b"; ctx.font="600 11px sans-serif";
+  ctx.textAlign="left";
+  ctx.fillText(`${minAge}歳`, padL, h-10);
+  ctx.textAlign="right";
+  ctx.fillText(`${maxAge}歳`, w-padR, h-10);
+
+  ctx.textAlign="right";
+  ctx.fillText(Math.round(maxV/10000)+"億円", padL-8, padT+5);
+  ctx.fillText(Math.round(minV/10000)+"億円", padL-8, h-padB-5);
+}
+
+function yen(v){ return Math.round(v).toLocaleString()+" 万円"; }
+
+function renderDetailResults(res){
+  const labels = ["時点","適用金利","月返済額","月維持費","月住居費","月予算","判定","元金累計","利息累計","残債","維持費累計","持ち家純資産","賃貸純資産","資産差"];
+  const checkpointYears = [];
+  for(let year=10; year<=res.years; year+=10) checkpointYears.push(year);
+  if(!checkpointYears.includes(res.years)) checkpointYears.push(res.years);
+  $("detailBody").innerHTML = checkpointYears.map(year=>{
+    const row = res.yearDetails[year-1];
+    if(!row) return "";
+    const cells = [
+      `${row.year}年目（${Math.round(row.age)}歳）`, // ★年齢を併記
+      `${(row.annualRate*100).toFixed(2)}%`,
+      row.monthlyPayment.toFixed(1),
+      row.maintMonthly.toFixed(1),
+      row.housingCost.toFixed(1),
+      row.budget.toFixed(1),
+      row.overBudget ? "超過" : "範囲内",
+      Math.round(row.cumulativePrincipal).toLocaleString(),
+      Math.round(row.cumulativeInterest).toLocaleString(),
+      Math.round(row.balance).toLocaleString(),
+      Math.round(row.cumulativeMaint).toLocaleString(),
+      Math.round(row.buyNet).toLocaleString(),
+      Math.round(row.rentNet).toLocaleString(),
+      Math.round(row.difference).toLocaleString()
+    ];
+    return `<tr class="${row.overBudget?'overBudget':''}">${cells.map((value,index)=>`<td data-label="${labels[index]}">${value}</td>`).join("")}</tr>`;
+  }).join("");
+  $("totalLoanPaid").textContent = yen(res.cumulativeLoanPaid);
+  $("totalInterestPaid").textContent = yen(res.cumulativeInterest);
+  $("totalMaintPaid").textContent = yen(res.cumulativeMaint);
+}
+
+function update(){
+  ids.forEach(fmt);
+  restartIds.forEach(fmt);
+  updateMaintHelper();
+  if($("restartEnabled").checked) updatePrepayHelper();
+
+const res = simulate();
+let mainRes = res;
+const overlays = [];
+if($("restartEnabled").checked){
+  const origRes = computeOriginalPlan();
+  mainRes = origRes; // 実線＝当初計画（開始年齢〜完了まで）
+  overlays.push({res: res, dash:[8,4], label:"繰り上げ返済後"}); // 破線＝見直し後（再スタート年齢〜新完了まで）
+
+  const origFinal = origRes.buySeries.at(-1);
+  const nowFinal = res.buySeries.at(-1);
+  const diff = nowFinal - origFinal;
+  document.querySelector("#planCompareBox").innerHTML =
+    `当初計画の最終資産：<b id="planOrigFinal">-</b>　／　${nowStateLabel()}の最終資産：<b id="planNowFinal">-</b>　／　差額：<b id="planDiff">-</b>`;
+  $("planCompareBox").style.display = "block";
+  $("planOrigFinal").textContent = yen(origFinal);
+  $("planNowFinal").textContent = yen(nowFinal);
+  $("planDiff").textContent = (diff>=0?"+":"") + yen(diff);
+  $("planCompareNote").style.display = "block";
+  $("planCompareNote").textContent =
+  `※「当初計画」は開始年齢から一度も見直さず完済まで続けた場合の持ち家純資産、「今の設定」は実績値・繰り上げ返済などを反映した後の持ち家純資産です。どちらも同じ最終年齢（${Math.round(origRes.baseAge + origRes.years - 1)}歳）時点で比較しています。差額がプラスなら、見直し（繰り上げ返済など）によって当初計画より純資産が増える計算です。あくまでこのシミュレータの前提（金利・利回り一定など）に基づく試算です。`;
+
+  if(prepaySnapshot){
+    const investReturn = parseFloat($("investReturn").value)/100;
+    const prepayFinalA = res.buySeries.at(-1);
+    const investedGrowth = prepaySnapshotAmount * Math.pow(1+investReturn, res.years);
+    const prepayFinalB = prepaySnapshot.buySeries.at(-1) + investedGrowth;
+    const prepayDiff = prepayFinalA - prepayFinalB;
+    document.querySelector("#prepayCompareBox").innerHTML =
+      `${nowStateLabel()}：<b id="prepayFinalA">-</b>　／　繰り上げ資金${Math.round(prepaySnapshotAmount).toLocaleString()}万円を運用に回した場合：<b id="prepayFinalB">-</b>　／　差額：<b id="prepayDiff">-</b>`;
+    $("prepayCompareBox").style.display = "block";
+    $("prepayFinalA").textContent = yen(prepayFinalA);
+    $("prepayFinalB").textContent = yen(prepayFinalB);
+    $("prepayDiff").textContent = (prepayDiff>=0?"+":"") + yen(prepayDiff);
+    $("prepayCompareNote").style.display = "block";
+    $("prepayCompareNote").textContent =
+      `※${Math.round(prepaySnapshotAmount).toLocaleString()}万円を繰り上げ返済に使わず、そのまま年利${(investReturn*100).toFixed(1)}%で${res.years}年間運用していたら約${yen(investedGrowth)}になっていた、という前提での比較です。差額がプラスなら繰り上げ返済の方が得、マイナスなら運用に回した方が得という計算結果です。`;
+  }else{
+    $("prepayCompareBox").style.display = "none";
+    $("prepayCompareNote").style.display = "none";
+  }
+}else{
+  $("planCompareBox").style.display = "none";
+  $("prepayCompareBox").style.display = "none";
+  $("prepayCompareNote").style.display = "none";
+}
+
+drawChart(mainRes.buySeries, mainRes.rentSeries, mainRes.years, mainRes.baseAge, overlays);
+
+  $("eqBuild").textContent = yen(res.buildingValueFinal);
+  $("eqLand").textContent = yen(res.landValueFinal);
+  $("eqLoan").textContent = yen(res.loanBalanceFinal);
+  $("eqBuySurplus").textContent = yen(res.buySurplusFinal);
+  $("buyResult").textContent = yen(res.buySeries.at(-1));
+
+  $("eqRentInit").textContent = yen(res.rentInitialFinal);
+  $("eqRentSurplus").textContent = yen(res.rentSurplusFinal);
+  $("rentResult").textContent = yen(res.rentSeries.at(-1));
+
+  // ★逆転年にも年齢を併記
+  $("crossYear").textContent = res.crossYear
+    ? `${res.crossYear} 年目（${Math.round(res.baseAge + res.crossYear)}歳）`
+    : "交差なし（逆転しません）";
+  $("buyWarn").innerHTML = res.buyOverBudgetCount>0 ? `⚠ 予算超過: ${res.buyOverBudgetCount}ヶ月（維持費やローンの見直し推奨）` : "";
+  $("rentWarn").innerHTML = res.rentOverBudgetCount>0 ? `⚠ 予算超過: ${res.rentOverBudgetCount}ヶ月` : "";
+  $("proBudgetWarn").innerHTML = calculationMode==="pro" && !$("restartEnabled").checked && res.buyOverBudgetCount>0
+    ? `⚠ プロ条件では住居費が予算を超える期間があります：合計 ${res.buyOverBudgetCount}ヶ月。下表の該当時点を赤色で表示しています。`
+    : "";
+  renderDetailResults(res);
+
+  if($("restartEnabled").checked){
+    const age = parseFloat($("restartAge").value);
+    const yearsLeft = parseFloat($("restartLoanYearsLeft").value);
+    $("restartSummary").textContent = `この条件だと、ローン完済は${(age+yearsLeft).toFixed(0)}歳の見込みです。`;
+  } else {
+    $("restartSummary").textContent = "";
+  }
+}
+
+function collectState(){
+  const state = {};
+  ids.forEach(id => state[id] = $(id).value);
+  proIds.forEach(id => state[id] = $(id).value);
+  state.investDownPayment = $("investDownPayment").checked;
+  state.investSurplus = $("investSurplus").checked;
+  state.propertyType = propertyType;
+  state.region = document.querySelector(".toggle button[data-region].active").dataset.region;
+  state.calculationMode = calculationMode;
+  state.rateMode = $("rateMode").value;
+  state.maintTaxYearly = $("maintTaxYearly").value;
+  state.maintLumpTotal = $("maintLumpTotal").value;
+  state.restartEnabled = $("restartEnabled").checked;
+  restartIds.forEach(id => state[id] = $(id).value);
+  return state;
+}
+
+function applyState(state, shouldUpdate=true){
+  ids.forEach(id => { if(state[id]!==undefined) $(id).value = state[id]; });
+  const linkedYears = state.loanYears!==undefined ? state.loanYears : (state.years!==undefined ? state.years : $("loanYears").value);
+  $("loanYears").value = linkedYears;
+  $("years").value = linkedYears;
+  proIds.forEach(id => { if(state[id]!==undefined) $(id).value = state[id]; });
+  if(state.investDownPayment!==undefined) $("investDownPayment").checked = state.investDownPayment;
+  if(state.investSurplus!==undefined) $("investSurplus").checked = state.investSurplus;
+  if(state.rateMode!==undefined) $("rateMode").value = state.rateMode;
+  $("proRateFields").classList.toggle("hidden", $("rateMode").value!=="phased");
+  if(state.maintTaxYearly!==undefined) $("maintTaxYearly").value = state.maintTaxYearly;
+  if(state.maintLumpTotal!==undefined) $("maintLumpTotal").value = state.maintLumpTotal;
+
+  restartIds.forEach(id => { if(state[id]!==undefined) $(id).value = state[id]; });
+  if(state.restartEnabled!==undefined){
+    $("restartEnabled").checked = state.restartEnabled;
+    $("restartFields").style.display = state.restartEnabled ? "block" : "none";
+  }
+
+  if(state.propertyType){
+    propertyType = state.propertyType;
+    document.querySelectorAll(".toggle.type button").forEach(b=>b.classList.toggle("active", b.dataset.type===state.propertyType));
+    $("maintLabel").textContent = propertyType==="mansion" ? "管理費＋修繕積立金（年）" : "維持費（税・修繕/年）";
+    $("mansionNote").style.display = propertyType==="mansion" ? "block" : "none";
+  }
+  if(state.region){
+    document.querySelectorAll(".toggle button[data-region]").forEach(b=>b.classList.toggle("active", b.dataset.region===state.region));
+  }
+  setMode(state.calculationMode || "simple", false);
+  if(shouldUpdate) update();
+}
+
+function computeSummary(state){
+  const backupState = collectState();
+  applyState(state, false);
+  const res = simulate();
+  applyState(backupState, false);
+  return res;
+}
+function computeOriginalPlan(){
+  const state = collectState();
+  state.restartEnabled = false;
+  return computeSummary(state);
+}
+function nowStateLabel(){
+  if(prepayMode === "shorten") return "繰り上げ返済後（期間短縮）";
+  if(prepayMode === "reduce")  return "繰り上げ返済後（返済額軽減）";
+  return "実績反映後（繰り上げなし）";
+}
+$("saveBtn").addEventListener("click", ()=>{
+  const state = collectState();
+  const now = new Date();
+  state.savedAt = now.toISOString();
+
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const timeStr = `${yyyy}${mm}${dd}_${hh}${min}${ss}`;
+
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  
+  const modeName = state.calculationMode === "pro"
+    ? `pro-${state.rateMode === "phased" ? "phased" : "fixed"}`
+    : "trial";
+  a.download = `simulator_${modeName}_${timeStr}_${state.propertyType}_${state.region}.json`;
+  
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  $("ioStatus").textContent = `保存しました：${a.download}`;
+});
+
+$("loadInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const state = JSON.parse(reader.result);
+      applyState(state);
+      const savedDate = state.savedAt ? state.savedAt.slice(0,10) : "不明";
+      $("ioStatus").textContent = `読み込みました（保存日: ${savedDate}）`;
+    }catch(err){
+      $("ioStatus").textContent = "読み込みに失敗しました。正しいJSONファイルか確認してください。";
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+function encodeState(state){
+  const json = JSON.stringify(state);
+  return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode('0x'+p1)));
+}
+function decodeState(str){
+  const json = decodeURIComponent(Array.prototype.map.call(atob(str), c => '%' + ('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+  return JSON.parse(json);
+}
+
+$("shareBtn").addEventListener("click", async ()=>{
+  const state = collectState();
+  const encoded = encodeState(state);
+  const url = `${location.origin}${location.pathname}#s=${encoded}`;
+
+  try{
+    await navigator.clipboard.writeText(url);
+    $("ioStatus").textContent = "URLをコピーしました。別端末でこのURLを開くと同じ条件が復元されます。";
+  }catch(err){
+    window.prompt("コピーできませんでした。下のURLを手動でコピーしてください：", url);
+  }
+  history.replaceState(null, "", `#s=${encoded}`);
+});
+
+function tryRestoreFromURL(){
+  const hash = location.hash;
+  if(hash.startsWith("#s=")){
+    try{
+      const state = decodeState(hash.slice(3));
+      applyState(state);
+      $("ioStatus").textContent = "URLから条件を復元しました。";
+      return true;
+    }catch(err){
+      console.warn("URL復元に失敗しました", err);
+    }
+  }
+  return false;
+}
+
+let compareList = [];
+const compareColumns = [
+  {label:'名称', get:r=>r.name},
+  {label:'仕様', get:r=>r.state.calculationMode==='pro'?'プロ':'お試し'},
+  {label:'物件', get:r=>r.state.propertyType==='mansion'?'マンション':'戸建て'},
+  {label:'地域', get:r=>r.state.region==='city'?'都市圏':'地方'},
+  {label:'総額(万円)', get:r=>r.state.totalPrice},
+  {label:'頭金(万円)', get:r=>r.state.downPayment},
+  {label:'金利', get:r=>r.state.calculationMode==='pro' && r.state.rateMode==='phased'?'期間別':r.state.loanRate+'%'},
+  {label:'家賃(万円)', get:r=>r.state.rent},
+  {label:'利回り(%)', get:r=>r.state.investReturn},
+  {label:'年数', get:r=>r.state.years},
+  {label:'持ち家(万円)', get:r=>r.buyFinal.toLocaleString()},
+  {label:'賃貸(万円)', get:r=>r.rentFinal.toLocaleString()},
+  {label:'逆転年', get:r=>r.crossYear ? r.crossYear+'年目' : '－'},
+];
+
+function addToCompareList(name, state, res){
+  compareList.push({
+    name,
+    state,
+    buyFinal: Math.round(res.buySeries.at(-1)),
+    rentFinal: Math.round(res.rentSeries.at(-1)),
+    crossYear: res.crossYear || null
+  });
+  renderCompareTable();
+}
+
+function renderCompareTable(){
+  const head = $("compareHeadRow");
+  head.innerHTML = compareColumns.map(c=>`<th>${c.label}</th>`).join('') + `<th></th>`;
+  const body = $("compareBody");
+  body.innerHTML = compareList.map((r, idx)=>{
+    const cells = compareColumns.map(c=>`<td>${c.get(r)}</td>`).join('');
+    return `<tr>${cells}<td><button data-idx="${idx}" class="delRowBtn">✕</button></td></tr>`;
+  }).join('');
+  document.querySelectorAll(".delRowBtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      compareList.splice(parseInt(btn.dataset.idx), 1);
+      renderCompareTable();
+    });
+  });
+  $("compareEmptyNote").style.display = compareList.length ? "none" : "block";
+}
+
+$("addCompareBtn").addEventListener("click", ()=>{
+  const name = prompt("この条件の名前を入力してください（例：都市圏・強気）", `シナリオ${compareList.length+1}`);
+  if(name===null) return;
+  const state = collectState();
+  const res = simulate();
+  addToCompareList(name || `シナリオ${compareList.length+1}`, state, res);
+});
+
+$("loadMultiInput").addEventListener("change", (e)=>{
+  const files = Array.from(e.target.files);
+  if(files.length===0) return;
+  let loaded = 0;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const state = JSON.parse(reader.result);
+        const res = computeSummary(state);
+        const name = file.name.replace(/\.json$/i, "");
+        addToCompareList(name, state, res);
+      }catch(err){
+        console.warn("読み込み失敗", file.name, err);
+      }
+      loaded++;
+      if(loaded===files.length){ $("ioStatus").textContent = `${files.length}件を比較表に追加しました。`; }
+    };
+    reader.readAsText(file);
+  });
+  e.target.value = "";
+});
+
+$("exportCsvBtn").addEventListener("click", ()=>{
+  if(compareList.length===0){ $("ioStatus").textContent = "比較データがありません。"; return; }
+  const headers = compareColumns.map(c=>c.label);
+  const rows = compareList.map(r=>compareColumns.map(c=>String(c.get(r)).replace(/,/g,'')));
+  const csv = [headers, ...rows].map(row=>row.join(",")).join("\r\n");
+  const bom = "\uFEFF";
+  const blob = new Blob([bom+csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "simulator_compare.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+renderCompareTable();
+
+document.querySelectorAll(".helpToggle").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const body = $(btn.dataset.target);
+    const isOpen = body.classList.toggle("open");
+    btn.classList.toggle("open", isOpen);
+  });
+});
+
+if(!tryRestoreFromURL()){
+  update();
+}
+
+window.addEventListener("resize", update);
+</script>
+</body>
+</html>
