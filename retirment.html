@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老後生活設計シミュレータ（3パターン比較）</title>
+<style>
+  :root{
+    --bg1:#eef4fb; --bg2:#e3ecf7;
+    --card:#ffffff; --border:#dbe4ef;
+    --owner:#3b82f6; --move:#8b5cf6; --rent:#f97316;
+    --text:#1e293b; --muted:#64748b; --warn:#dc2626;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));margin:0;padding:16px;color:var(--text);line-height:1.6;}
+  h1{font-size:1.35rem;text-align:center;margin:0 0 4px;}
+  p.sub{text-align:center;color:var(--muted);font-size:0.85rem;margin:0 0 18px;}
+  .grid{max-width:1100px;margin:0 auto;display:grid;gap:16px;grid-template-columns:1fr;}
+  @media(min-width:900px){.grid{grid-template-columns:1fr 1fr;}}
+  .full{grid-column:1/-1;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:0 4px 10px rgba(0,0,0,0.04);}
+  .card h2{font-size:1.02rem;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #eef1f5;display:flex;align-items:center;gap:8px;}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .dot.owner{background:var(--owner);} .dot.move{background:var(--move);} .dot.rent{background:var(--rent);}
+  .note{font-size:0.76rem;color:var(--muted);margin:6px 0 0;}
+  .row{display:grid;grid-template-columns:1fr 110px;gap:8px;align-items:center;margin-bottom:10px;}
+  .row label{font-size:0.82rem;font-weight:600;}
+  .row input[type=number]{width:100%;padding:7px 8px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.9rem;text-align:right;}
+  .row span.unit{font-size:0.72rem;color:var(--muted);margin-left:4px;}
+  .checkRow{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:0.82rem;font-weight:600;}
+  .checkRow input{width:18px;height:18px;}
+  canvas{width:100%!important;height:320px;display:block;margin-bottom:14px;}
+  .resultGrid{display:grid;grid-template-columns:1fr;gap:10px;}
+  @media(min-width:700px){.resultGrid{grid-template-columns:1fr 1fr 1fr;}}
+  .resultBox{border-radius:12px;padding:14px;color:#fff;}
+  .resultBox.owner{background:var(--owner);} .resultBox.move{background:var(--move);} .resultBox.rent{background:var(--rent);}
+  .resultBox .label{font-size:0.78rem;opacity:0.85;}
+  .resultBox .val{font-size:1.25rem;font-weight:800;margin-top:4px;}
+  .resultBox .sub{font-size:0.72rem;opacity:0.85;margin-top:6px;border-top:1px solid rgba(255,255,255,0.3);padding-top:6px;}
+  .totalBox{margin-top:14px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0;border-radius:12px;padding:14px;}
+  .totalBox h3{font-size:0.88rem;margin:0 0 8px;color:#166534;}
+  .totalGrid{display:grid;grid-template-columns:1fr;gap:8px;}
+  @media(min-width:700px){.totalGrid{grid-template-columns:1fr 1fr 1fr;}}
+  .totalItem{background:rgba(255,255,255,0.6);border-radius:8px;padding:10px;text-align:center;}
+  .totalItem .lbl{font-size:0.72rem;color:#166534;}
+  .totalItem .amt{font-size:1.15rem;font-weight:800;color:#14532d;margin-top:2px;}
+  table{width:100%;border-collapse:collapse;font-size:0.78rem;margin-top:12px;}
+  th,td{padding:7px 8px;text-align:right;border-bottom:1px solid #e2e8f0;}
+  th:first-child,td:first-child{text-align:left;}
+  .breakdown{margin-top:8px;padding:10px;background:rgba(0,0,0,0.03);border-radius:8px;line-height:1.8;font-size:0.78rem;color:var(--text);}
+  .ioRow{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;}
+  .ioBtn{padding:12px 16px;border:none;border-radius:12px;background:var(--owner);color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;box-shadow:0 3px 8px rgba(0,0,0,0.08);}
+  .ioBtn:hover{filter:brightness(1.08);}
+  #ioStatus{font-size:0.75rem;color:var(--muted);margin-top:8px;text-align:center;min-height:1.2em;}
+</style>
+</head>
+<body>
+
+<h1>老後生活設計シミュレータ</h1>
+<p class="sub">試算開始年齢時点の実数値を起点に、住まいの選択3パターンで資産の推移を試算する（未来予測ではなく試行ツール）</p>
+
+<div class="grid">
+
+  <div class="card full">
+    <h2>① 試算開始年齢時点の棚卸し数値</h2>
+    <div class="row"><label>現金・普通預金（開始時の数値）</label><input id="cashSavings" type="number" value="500"><span class="unit">万円</span></div>
+    <div class="row"><label>投資信託・株式等（運用利回りを適用する資金）</label><input id="investedSavings" type="number" value="500"><span class="unit">万円</span></div>
+     <p class="note" style="margin-top:0;">生活防衛資金として現金で置いている分と、投資信託や株式などで積極的に運用している分を分けて入力してください。下の「運用利回り」は、投資信託・株式等の欄にのみ適用されます。</p>
+    <div class="row"><label>住宅ローン残債（あれば）</label><input id="loanBalance" type="number" value="0"><span class="unit">万円</span></div>
+    <p class="note">※ シミュレータの計算結果ではなく、実際の通帳・残高証明などから拾った金額を入れてください。</p>
+  </div>
+
+  <div class="card">
+    <h2>② 共通条件（年齢・収入・生活費）</h2>
+    <div class="row"><label>試算開始年齢</label><input id="startAge" type="number" value="65"><span class="unit">歳</span></div>
+    <div class="row"><label>試算終了年齢</label><input id="endAge" type="number" value="95"><span class="unit">歳</span></div>
+    <p class="note" style="margin-top:0;">ローン完済後、少し経ってから「この先どうなるか」を試したい時など、年齢は自由に設定してください。</p>
+    <div class="row"><label>年金月額（世帯合計で税引き後）</label><input id="pension" type="number" value="22"><span class="unit">万円/月</span></div>
+    <div class="row"><label>継続雇用による収入</label><input id="workIncome" type="number" value="0"><span class="unit">万円/月</span></div>
+    <div class="row"><label>継続雇用等収入 終了年齢</label><input id="workEndAge" type="number" value="65"><span class="unit">歳</span></div>
+    <div class="row"><label>その他収入（退職金運用益等）</label><input id="otherIncome" type="number" value="0"><span class="unit">万円/月</span></div>
+    <div class="row"><label>その他収入 開始年齢</label><input id="otherIncomeStartAge" type="number" value="65"><span class="unit">歳</span></div>
+    <div class="row"><label>その他収入 終了年齢</label><input id="otherIncomeEndAge" type="number" value="95"><span class="unit">歳</span></div>
+    <p class="note" style="margin-top:0;">退職金を年金保険や取り崩し運用に回した際の実質月額収入イメージなどに使えます。期間限定でなければ、開始・終了年齢を試算開始・終了年齢と同じ値にしてください。</p>
+    <div class="row"><label>生活費全て（住居費除く）</label><input id="livingCost" type="number" value="25"><span class="unit">万円/月</span></div>
+    <div class="row"><label>生活費・住居費 共通上昇率</label><input id="livingGrowth" type="number" step="0.1" value="0.5"><span class="unit">%/年</span></div>
+    <div class="row"><label>運用利回り</label><input id="investReturn" type="number" step="0.1" value="2.0"><span class="unit">%/年</span></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot owner"></span>パターン① 持ち家継続</h2>
+    <div class="row"><label>現在の持ち家 想定資産価値</label><input id="ownPropertyValue" type="number" value="3500"><span class="unit">万円</span></div>
+    <div class="row"><label>不動産評価額の年間変動率</label><input id="ownPropertyGrowth" type="number" step="0.1" value="-1.5"><span class="unit">%/年</span></div>
+    <p class="note" style="margin-top:0;">木造は年-2〜-3%、軽量鉄骨は年-1.5〜-2%、マンション（RC造）は年-0.5〜-1%程度が目安です。地価の強いエリアではマイナス幅が小さくなることもあります。グラフの資産額には含めず、参考表示にのみ使用します。</p> 
+    <div class="row"><label>月あたり維持費（税・修繕等）</label><input id="ownMaint" type="number" step="0.1" value="3.0"><span class="unit">万円/月</span></div>
+    <p class="note" style="margin-top:4px;">戸建て：修繕費＋固定資産税<br>マンション：修繕費＋管理費＋固定資産税＋その他<br>試算期間の全合計値を月割り平均値</p>
+    <div class="checkRow"><input id="lumpSumPayoff" type="checkbox"><label for="lumpSumPayoff">残債を試算開始時点で一括返済する</label></div>
+    <div class="row"><label>月あたりローン返済額（継続する場合）</label><input id="ownLoanMonthly" type="number" step="0.1" value="0"><span class="unit">万円/月</span></div>
+    <div class="row"><label>残り返済月数（継続する場合）</label><input id="ownLoanMonths" type="number" value="0"><span class="unit">ヶ月</span></div>
+    <p class="note">一括返済にチェックすると、初年度に預貯金からローン残債を引き、以降は維持費のみになります。</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot move"></span>パターン② 売却して住み替え</h2>
+    <p class="note" style="margin-top:0;">売却関連費用は物件価格に比例するため「率」、新居取得費は目標物件そのものの金額なので「額」で入力する設計です。</p>
+    <div class="row"><label>売却額</label><input id="saleAmount" type="number" value="4000"><span class="unit">万円</span></div>
+    <div class="row"><label>売却諸費用 合計（仲介手数料＋登記＋印紙代等）</label><input id="agentFeeRate" type="number" step="0.1" value="4.0"><span class="unit">%（パーセント）</span></div>
+    <div class="row"><label>新居 物件価格（不動産評価額の目安）</label><input id="newHomePrice" type="number" value="2100"><span class="unit">万円</span></div>
+    <div class="row"><label>新居 取得諸費用（登記・クリーニング・備品等）</label><input id="newHomeFees" type="number" value="300"><span class="unit">万円</span></div>
+    <div class="row"><label>不動産評価額の年間変動率</label><input id="movePropertyGrowth" type="number" step="0.1" value="-1.0"><span class="unit">%/年</span></div>
+     <p class="note" style="margin-top:0;">預貯金からの支出は「物件価格＋取得諸費用」の合計で計算します。資産価値の参考表示には「物件価格」のみを使い、この年間変動率で減価/増価させます。新築や築浅の物件を想定する場合は、マイナス幅をやや大きめに見るのが実態に近いです。</p>
+    <div class="row"><label>月あたり維持費（新居）</label><input id="newHomeMonthly" type="number" step="0.1" value="2.0"><span class="unit">万円/月</span></div>
+    <p class="note" style="margin-top:4px;">戸建て：修繕費＋固定資産税／マンション：修繕費＋管理費＋固定資産税＋その他</p>
+    <div class="note breakdown" id="moveDiffBreakdown"></div>
+  </div>
+
+  <div class="card">
+    <h2><span class="dot rent"></span>パターン③ 賃貸継続</h2>
+    <div class="checkRow"><input id="rentSellHome" type="checkbox"><label for="rentSellHome">持ち家を売却し、手取り額をこのパターンにだけ加える</label></div>
+    <div class="row"><label>売却額</label><input id="rentSaleAmount" type="number" value="4000"><span class="unit">万円</span></div>
+    <div class="row"><label>売却諸費用（率）</label><input id="rentSaleFeeRate" type="number" step="0.1" value="4.0"><span class="unit">%</span></div>
+    <div class="row"><label>うち運用に回す割合</label><input id="rentInvestRatio" type="number" min="0" max="100" step="5" value="0"><span class="unit">%</span></div>
+    <p class="note" style="margin-top:0;">残りは現金・普通預金として保有します（例：割合0%なら全額現金、100%なら全額運用に回します）。この売却の反映は「賃貸継続」パターンにのみ適用され、持ち家継続・住み替えパターンには影響しません。</p>
+    <div class="row"><label>家賃（月額）</label><input id="rentMonthly" type="number" value="14"><span class="unit">万円/月</span></div>
+    <div class="note" style="margin-top:0;">家賃の上昇率は上の「共通上昇率」を使用します。</div>
+    <div class="note breakdown" id="rentSellBreakdown"></div>
+  </div>
+
+  <div class="card full">
+    <h2>結果：3パターンの資産推移</h2>
+    <canvas id="chart"></canvas>
+    <p class="note" style="margin-top:-6px;">縦軸：資産額（現金＋運用資産のみ／万円）　横軸：年齢　濃い実線＝資産0万円のライン</p>
+    <p class="note" style="margin-top:4px; font-weight:700;">※このグラフ・下の数値は「生活費として取り崩せる現金・運用資産」だけを示しています。持ち家継続・住み替えパターンでは、これとは別に不動産（家）そのものの資産価値が残っています。</p>
+    <div class="resultGrid">
+      <div class="resultBox owner">
+        <div class="label">① 持ち家継続</div>
+        <div class="val" id="depOwner">-</div>
+        <div class="sub">不動産評価額（参考・未現金化）：<span id="ownPropRef">-</span></div>
+      </div>
+      <div class="resultBox move">
+        <div class="label">② 売却→住み替え</div>
+        <div class="val" id="depMove">-</div>
+        <div class="sub">不動産評価額（参考・未現金化）：<span id="movePropRef">-</span></div>
+      </div>
+      <div class="resultBox rent">
+        <div class="label">③ 賃貸継続</div>
+        <div class="val" id="depRent">-</div>
+        <div class="sub">不動産評価額：0万円（住宅は保有していません）</div>
+      </div>
+    </div>
+
+    <div class="totalBox">
+      <h3>試算終了年齢時点の合計資産（現金・運用資産＋不動産評価額）</h3>
+      <div class="totalGrid">
+        <div class="totalItem"><div class="lbl">① 持ち家継続</div><div class="amt" id="totalOwner">-</div></div>
+        <div class="totalItem"><div class="lbl">② 売却→住み替え</div><div class="amt" id="totalMove">-</div></div>
+        <div class="totalItem"><div class="lbl">③ 賃貸継続</div><div class="amt" id="totalRent">-</div></div>
+      </div>
+      <p class="note" style="margin-top:8px;">不動産評価額は試算期間中一定額のまま変化しない前提での参考値です。売却時は別途、仲介手数料等の諸費用がかかります。</p>
+    </div>
+
+    <table id="resultTable">
+      <thead><tr><th>年齢</th><th>①持ち家(万円)</th><th>②住み替え(万円)</th><th>③賃貸(万円)</th></tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+    <div class="ioRow">
+     <button id="saveResultBtn" class="ioBtn">💾 条件と結果をJSONで保存</button>
+     <label class="ioBtn" for="loadResultInput" style="background:#e2e8f0; color:var(--text); cursor:pointer;">
+    📂 保存したJSONを読み込む
+     <input id="loadResultInput" type="file" accept="application/json" style="display:none;">
+      </label>
+    </div>
+    <div id="ioStatus"></div>
+    <p class="note">※ 年金制度・地価・物価は将来変わり得る前提の「仮置き」です。将来予測ではなく、条件を動かして傾向を掴むための試行ツールとして使ってください。</p>
+  </div>
+
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const num=id=>parseFloat($(id).value)||0;
+
+function monthlyRate(pct){ return pct/100/12; }
+
+function updateMoveDiffBreakdown(){
+  const startAge = num("startAge");
+  const sale = num("saleAmount");
+  const feeRate = num("agentFeeRate");
+  const loan = num("loanBalance");
+  const newPrice = num("newHomePrice");
+  const newFees = num("newHomeFees");
+  const newCost = newPrice + newFees;
+
+  const fee = sale * feeRate / 100;
+  const saleNet = sale - fee;
+  const diff = saleNet - loan - newCost;
+  const sign = diff >= 0 ? "＋" : "－";
+
+  $("moveDiffBreakdown").innerHTML =
+    `${startAge}歳時点で一度だけ、預貯金に以下を反映します（住み替えの一時金）<br>` +
+    `　売却額 ${sale.toLocaleString()}万円 － 売却諸費用 ${fee.toFixed(1)}万円 = 手取り ${saleNet.toFixed(1)}万円<br>` +
+    `　手取り ${saleNet.toFixed(1)}万円 － ローン残債 ${loan.toLocaleString()}万円 － 新居取得費（物件${newPrice.toLocaleString()}万円＋諸費用${newFees.toLocaleString()}万円＝${newCost.toLocaleString()}万円）<br>` +
+    `　＝ 資産に${sign}${Math.abs(diff).toFixed(1)}万円`;
+}
+
+function updateRentSellBreakdown(){
+  const checked = $("rentSellHome").checked;
+  if(!checked){
+    $("rentSellBreakdown").innerHTML = "持ち家は売却せず、①の棚卸し欄（現金・投資信託等）のみで計算します。";
+    return;
+  }
+  const sale = num("rentSaleAmount");
+  const feeRate = num("rentSaleFeeRate");
+  const loan = num("loanBalance");
+  const ratio = num("rentInvestRatio")/100;
+
+  const fee = sale * feeRate / 100;
+  const netSale = Math.max(sale - fee - loan, 0);
+  const toInvested = netSale * ratio;
+  const toCash = netSale - toInvested;
+
+  $("rentSellBreakdown").innerHTML =
+    `売却額 ${sale.toLocaleString()}万円 － 諸費用 ${fee.toFixed(1)}万円 － ローン残債 ${loan.toLocaleString()}万円 = 手取り ${netSale.toFixed(1)}万円<br>` +
+    `　→ 現金に ${toCash.toFixed(1)}万円　／　運用に ${toInvested.toFixed(1)}万円 を追加（このパターンのみ）`;
+}
+
+function simulate(){
+  const startAge=num("startAge"), endAge=num("endAge");
+  const months=Math.max(1,Math.round((endAge-startAge)*12));
+  const pension=num("pension"), workIncome=num("workIncome"), workEndAge=num("workEndAge");
+  const otherIncome=num("otherIncome"), otherStart=num("otherIncomeStartAge"), otherEnd=num("otherIncomeEndAge");
+  const livingCost0=num("livingCost"), growth=num("livingGrowth")/100;
+  const invM=monthlyRate(num("investReturn"));
+  const cashSavings=num("cashSavings"), investedSavings=num("investedSavings"), loanBalance=num("loanBalance");
+
+  const ownMaint0=num("ownMaint");
+  const lumpSum=$("lumpSumPayoff").checked;
+  const ownLoanMonthly=num("ownLoanMonthly"), ownLoanMonths=num("ownLoanMonths");
+  const saleAmount=num("saleAmount"), agentFeeRate=num("agentFeeRate")/100;
+  const newHomePrice=num("newHomePrice"), newHomeFees=num("newHomeFees"), newHomeMonthly0=num("newHomeMonthly");
+  const newHomeCost = newHomePrice + newHomeFees;
+
+  const rentMonthly0=num("rentMonthly");
+
+  let ownCash = cashSavings, ownInvested = lumpSum ? (investedSavings-loanBalance) : investedSavings;
+  let moveCash = cashSavings, moveInvested = investedSavings + saleAmount*(1-agentFeeRate) - loanBalance - newHomeCost;
+
+  const rentSellHome = $("rentSellHome").checked;
+  let rentCash = cashSavings, rentInvested = investedSavings;
+  if(rentSellHome){
+    const rentSaleAmount = num("rentSaleAmount");
+    const rentSaleFeeRate = num("rentSaleFeeRate")/100;
+    const rentInvestRatio = num("rentInvestRatio")/100;
+    const netSale = Math.max(rentSaleAmount*(1-rentSaleFeeRate) - loanBalance, 0);
+    rentCash += netSale * (1-rentInvestRatio);
+    rentInvested += netSale * rentInvestRatio;
+  }
+
+  const series={own:[],move:[],rent:[]};
+  let depAgeOwn=null, depAgeMove=null, depAgeRent=null;
+
+  for(let m=1;m<=months;m++){
+    const yearIdx=Math.floor((m-1)/12);
+    const age=startAge+(m-1)/12;
+    const infl=Math.pow(1+growth,yearIdx);
+
+    const income = pension
+      + (age<workEndAge ? workIncome : 0)
+      + ((age>=otherStart && age<otherEnd) ? otherIncome : 0);
+    const living = livingCost0*infl;
+
+    const ownHousing = ownMaint0*infl + ((!lumpSum && m<=ownLoanMonths) ? ownLoanMonthly : 0);
+    const moveHousing = newHomeMonthly0*infl;
+    const rentHousing = rentMonthly0*infl;
+
+    const ownNet = income - living - ownHousing;
+    const moveNet = income - living - moveHousing;
+    const rentNet = income - living - rentHousing;
+
+    ownInvested *= (1+invM);
+    moveInvested *= (1+invM);
+    rentInvested *= (1+invM);
+
+    ownCash += ownNet;
+    moveCash += moveNet;
+    rentCash += rentNet;
+
+    const ownAsset = ownCash + ownInvested;
+    const moveAsset = moveCash + moveInvested;
+    const rentAsset = rentCash + rentInvested;
+
+    if(ownAsset<=0 && depAgeOwn===null) depAgeOwn=age;
+    if(moveAsset<=0 && depAgeMove===null) depAgeMove=age;
+    if(rentAsset<=0 && depAgeRent===null) depAgeRent=age;
+
+    if(m%12===0){
+      series.own.push(ownAsset); series.move.push(moveAsset); series.rent.push(rentAsset);
+    }
+  }
+  return {series, years:Math.floor(months/12), startAge, depAgeOwn, depAgeMove, depAgeRent};
+}
+
+function drawChart(res){
+  const canvas=$("chart"); const dpr=window.devicePixelRatio||1;
+  const w=canvas.clientWidth, h=canvas.clientHeight||320;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+
+  const all=res.series.own.concat(res.series.move,res.series.rent);
+  const maxV=Math.max(...all,0), minV=Math.min(...all,0);
+  const padL=60,padR=15,padT=15,padB=26;
+  const n=res.years;
+  const scaleX=i=>padL+(w-padL-padR)*i/(n-1||1);
+  const scaleY=v=>h-padB-(h-padT-padB)*(v-minV)/((maxV-minV)||1);
+
+  if(minV<=0 && maxV>=0){
+    const y0=scaleY(0);
+    ctx.strokeStyle="#94a3b8"; ctx.lineWidth=1.4; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(padL,y0); ctx.lineTo(w-padR,y0); ctx.stroke();
+    ctx.fillStyle="#475569"; ctx.font="700 11px sans-serif"; ctx.textAlign="right";
+    ctx.fillText("0万円", padL-6, y0+4);
+  }
+
+  function line(series,color){
+    ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.lineJoin="round"; ctx.lineCap="round";
+    ctx.beginPath();
+    series.forEach((v,i)=>{ i===0?ctx.moveTo(scaleX(i),scaleY(v)):ctx.lineTo(scaleX(i),scaleY(v)); });
+    ctx.stroke();
+  }
+  line(res.series.own,"#3b82f6");
+  line(res.series.move,"#8b5cf6");
+  line(res.series.rent,"#f97316");
+
+  ctx.fillStyle="#64748b"; ctx.font="600 11px sans-serif"; ctx.textAlign="left";
+  ctx.fillText(res.startAge+"歳", padL, h-8);
+  ctx.textAlign="right";
+  ctx.fillText((res.startAge+n)+"歳", w-padR, h-8);
+  ctx.fillText(Math.round(maxV).toLocaleString()+"万円", padL-6, padT+8);
+  ctx.fillText(Math.round(minV).toLocaleString()+"万円", padL-6, h-padB-4);
+  ctx.textAlign="left";
+}
+
+function ageLabel(age){ return age===null ? "尽きません" : Math.floor(age)+"歳頃"; }
+
+function renderTable(res){
+  const rows=[];
+  for(let i=9;i<res.years;i+=10) rows.push(i);
+  if(!rows.includes(res.years-1)) rows.push(res.years-1);
+  $("resultBody").innerHTML=rows.map(i=>{
+    const age=res.startAge+i+1;
+    return `<tr><td>${age}歳</td><td>${Math.round(res.series.own[i]).toLocaleString()}</td><td>${Math.round(res.series.move[i]).toLocaleString()}</td><td>${Math.round(res.series.rent[i]).toLocaleString()}</td></tr>`;
+  }).join("");
+}
+
+function update(){
+  updateMoveDiffBreakdown();
+  updateRentSellBreakdown();
+  const res=simulate();
+  drawChart(res);
+  renderTable(res);
+  $("depOwner").textContent=ageLabel(res.depAgeOwn);
+  $("depMove").textContent=ageLabel(res.depAgeMove);
+  $("depRent").textContent=ageLabel(res.depAgeRent);
+
+  const years = res.years;
+  const ownProp = num("ownPropertyValue") * Math.pow(1+num("ownPropertyGrowth")/100, years);
+  const moveProp = num("newHomePrice") * Math.pow(1+num("movePropertyGrowth")/100, years);
+  $("ownPropRef").textContent = Math.round(ownProp).toLocaleString()+" 万円（開始時点："+num("ownPropertyValue").toLocaleString()+"万円）";
+  $("movePropRef").textContent = Math.round(moveProp).toLocaleString()+" 万円（開始時点："+num("newHomePrice").toLocaleString()+"万円）";
+
+  const finalOwn = res.series.own.at(-1) ?? 0;
+  const finalMove = res.series.move.at(-1) ?? 0;
+  const finalRent = res.series.rent.at(-1) ?? 0;
+  $("totalOwner").textContent = Math.round(finalOwn+ownProp).toLocaleString()+" 万円";
+  $("totalMove").textContent = Math.round(finalMove+moveProp).toLocaleString()+" 万円";
+  $("totalRent").textContent = Math.round(finalRent).toLocaleString()+" 万円";
+}
+
+document.querySelectorAll("input").forEach(el=>el.addEventListener("input",update));
+document.querySelectorAll("input[type=checkbox]").forEach(el=>el.addEventListener("change",update));
+
+function collectFullState(){
+   const ids=["startAge","endAge","pension","workIncome","workEndAge",
+    "otherIncome","otherIncomeStartAge","otherIncomeEndAge",
+    "livingCost","livingGrowth","investReturn","cashSavings","investedSavings","loanBalance",
+    "ownPropertyValue","ownPropertyGrowth","ownMaint","ownLoanMonthly","ownLoanMonths",
+    "saleAmount","agentFeeRate","newHomePrice","newHomeFees","movePropertyGrowth","newHomeMonthly",
+    "rentMonthly","rentSaleAmount","rentSaleFeeRate","rentInvestRatio"];
+  const state={};
+  ids.forEach(id=>{ if($(id)) state[id]=$(id).value; });
+  state.lumpSumPayoff = $("lumpSumPayoff").checked;
+  state.rentSellHome = $("rentSellHome").checked;
+  return state;
+}
+
+$("saveResultBtn").addEventListener("click", ()=>{
+  const state = collectFullState();
+  const res = simulate();
+  const now = new Date();
+  const payload = {
+    savedAt: now.toISOString(),
+    inputs: state,
+    results: {
+      startAge: res.startAge,
+      years: res.years,
+      depletionAge: { own: res.depAgeOwn, move: res.depAgeMove, rent: res.depAgeRent },
+      yearlyAssets: { own: res.series.own, move: res.series.move, rent: res.series.rent }
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const yyyy=now.getFullYear(), mm=String(now.getMonth()+1).padStart(2,'0'), dd=String(now.getDate()).padStart(2,'0');
+  const hh=String(now.getHours()).padStart(2,'0'), mi=String(now.getMinutes()).padStart(2,'0'), ss=String(now.getSeconds()).padStart(2,'0');
+  a.href=url;
+  a.download = `retirement_sim_${yyyy}${mm}${dd}_${hh}${mi}${ss}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  $("ioStatus").textContent = `保存しました：${a.download}`;
+});
+$("loadResultInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const payload = JSON.parse(reader.result);
+      const state = payload.inputs || payload; // 古い形式にも一応対応
+      Object.keys(state).forEach(id=>{
+        if(id==="lumpSumPayoff" || id==="rentSellHome"){
+          $(id).checked = state[id];
+        } else if($(id)){
+          $(id).value = state[id];
+        }
+      });
+      update();
+      const savedDate = payload.savedAt ? payload.savedAt.slice(0,10) : "不明";
+      $("ioStatus").textContent = `読み込みました（保存日: ${savedDate}）`;
+    }catch(err){
+      $("ioStatus").textContent = "読み込みに失敗しました。正しいJSONファイルか確認してください。";
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+update();
+window.addEventListener("resize", update);
+</script>
+</body>
+</html>
