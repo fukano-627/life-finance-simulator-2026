@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人生ファイナンス シミュレータ</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", sans-serif;
+    background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+    margin: 0;
+    padding: 24px 16px;
+    color: #1e293b;
+    line-height: 1.7;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 1.6rem;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  p.sub {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+  }
+  .card {
+    background: rgba(255,255,255,0.85);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 1.1rem;
+    margin: 0 0 10px;
+  }
+  .card p {
+    font-size: 0.9rem;
+    color: #334155;
+    margin: 0 0 16px;
+  }
+  .card a {
+    display: inline-block;
+    background: #3b82f6;
+    color: #fff;
+    text-decoration: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .card.retirement a {
+    background: #f97316;
+  }
+  footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>人生ファイナンス シミュレータ</h1>
+  <p class="sub">持ち家か賃貸か、繰り上げ返済はすべきか、老後の住まいはどうするか。<br>自分の数字で試して、考えるためのツールです。</p>
+
+  <div class="card">
+    <h2>🏠 持ち家君 vs 賃貸君</h2>
+    <p>頭金・金利・期間を入力して、持ち家と賃貸のどちらが得か試算します。繰り上げ返済の効果や、機会費用の考え方も確認できます。</p>
+    <a href="housing.html">シミュレータを開く</a>
+  </div>
+
+  <div class="card retirement">
+    <h2>👴 老後生活設計シミュレータ</h2>
+    <p>任意の年齢を起点に、持ち家継続・売却して住み替え・賃貸継続の3パターンで、老後の資産推移を比較します。</p>
+    <a href="retirement.html">シミュレータを開く</a>
+  </div>
+
+  <footer>
+    ※ これらは将来を予測するものではなく、条件を動かして傾向を掴むための試行ツールです。<br>
+    税制優遇・仲介手数料・譲渡税等は含まれていません。
+  </footer>
+</div>
+</body>
+</html>
