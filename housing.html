@@ -471,7 +471,7 @@
     <h2>共通条件・予算タイムライン</h2>
     <div class="row"><label>返済期間（比較期間）</label><span class="val" id="years_v">35 年</span><input id="years" type="range" min="10" max="35" value="35"></div>
     <div class="row"><label>開始時の年齢（購入時想定）</label><span class="val" id="startAge_v">35 歳</span><input id="startAge" type="range" min="20" max="70" value="35"></div>
-    <p class="note" style="margin-bottom: 16px;">ライフステージに合わせて「住居費に回せる月額」を設定できます。</p>
+    <p class="note" style="margin-bottom: 16px;">ライフステージに合わせて「住居費に回せる月額」（総額：ローン返済額だけでは無い場合もあります）を設定します。</p>
     <div class="phaseRow"><span class="label">1期（1〜10年目）</span><span class="val" id="phase1Budget_v">16万円/月</span><input id="phase1Budget" type="range" min="5" max="40" value="16"></div>
     <div class="phaseRow"><span class="label">2期（11〜20年目）</span><span class="val" id="phase2Budget_v">20万円/月</span><input id="phase2Budget" type="range" min="5" max="40" value="20"></div>
     <div class="phaseRow"><span class="label">3期（21〜30年目）</span><span class="val" id="phase3Budget_v">20万円/月</span><input id="phase3Budget" type="range" min="5" max="40" value="20"></div>
@@ -757,8 +757,8 @@ let prepayReducedPayment = null; // ★返済額軽減型を選んだ場合の�
 let calculationMode = "simple";
 const regionPresets = { city:{totalPrice:6000, landGrowth:0.5}, local:{totalPrice:6000, landGrowth:-0.5} };
 const typePresets = {
-  house:  {buildRatio:33, buildingLife:30, maintRate:0.8},
-  mansion:{buildRatio:15, buildingLife:47, maintRate:0.5}
+  house:  {buildRatio:33, buildingLife:22, maintRate:0.8},
+  mansion:{buildRatio:70, buildingLife:45, maintRate:0.5}
 };
 
 // ★年齢の基準点：再スタートONなら「現在の年齢」、OFFなら「開始時の年齢」
